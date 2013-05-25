@@ -37,6 +37,7 @@
 #include <unistd.h>
 
 #include "oj.h"
+#include "parse.h"
 
 typedef struct _YesNoOpt {
     VALUE	sym;
@@ -136,7 +137,7 @@ struct _Options	oj_default_options = {
     Yes,		// bigdec_as_num
     No,			// bigdec_load
     json_class,		// create_id
-    65536,		// max_stack
+    4095,		// max_stack
     9,			// sec_prec
     0,			// dump_opts
 };
@@ -230,7 +231,8 @@ get_def_opts(VALUE self) {
  *        :xmlschema date-time format taken from XML Schema as a String,
  *        :ruby Time.to_s formatted String
  * @param [String|nil] :create_id create id for json compatible object encoding
- * @param [Fixnum|nil] :max_stack maximum size to allocate on the stack for a JSON String
+ * @param [Fixnum|nil] :max_stack maximum size to allocate on the stack for a JSON String.
+ *                     Note that this should be low or zero when using fibers.
  * @param [Fixnum|nil] :second_precision number of digits after the decimal when dumping the seconds portion of time
  * @return [nil]
  */
@@ -421,7 +423,9 @@ load_with_opts(VALUE input, Options copts) {
     char	*json = 0;
     size_t	len = 0;
     VALUE	obj;
+    struct _Err	err;
 
+    err_init(&err);
     if (rb_type(input) == T_STRING) {
 	// the json string gets modified so make a copy of it
 	len = RSTRING_LEN(input) + 1;
@@ -459,6 +463,9 @@ load_with_opts(VALUE input, Options copts) {
 		json = ALLOCA_N(char, len + 1);
 	    }
 	    if (0 >= (cnt = read(fd, json, len)) || cnt != (ssize_t)len) {
+		if (copts->max_stack < len) {
+		    xfree(json);
+		}
 		rb_raise(rb_eIOError, "failed to read from IO Object.");
 	    }
 	    json[len] = '\0';
@@ -477,9 +484,12 @@ load_with_opts(VALUE input, Options copts) {
 	    rb_raise(rb_eArgError, "load() expected a String or IO Object.");
 	}
     }
-    obj = oj_parse(json, copts);
+    obj = oj_parse(json, copts, &err);
     if (copts->max_stack < len) {
 	xfree(json);
+    }
+    if (err_has(&err)) {
+	oj_err_raise(&err);
     }
     return obj;
 }
@@ -524,8 +534,13 @@ load_file(int argc, VALUE *argv, VALUE self) {
     VALUE		obj;
     struct _Options	options = oj_default_options;
     size_t		max_stack = oj_default_options.max_stack;
+    struct _Err	err;
 
+    err_init(&err);
     Check_Type(*argv, T_STRING);
+    if (2 <= argc) {
+	parse_options(argv[1], &options);
+    }
     path = StringValuePtr(*argv);
     if (0 == (f = fopen(path, "r"))) {
 	rb_raise(rb_eIOError, "%s", strerror(errno));
@@ -539,17 +554,20 @@ load_file(int argc, VALUE *argv, VALUE self) {
     }
     fseek(f, 0, SEEK_SET);
     if (len != fread(json, 1, len, f)) {
+	if (max_stack < len) {
+	    xfree(json);
+	}
 	fclose(f);
 	rb_raise(rb_const_get_at(Oj, rb_intern("LoadError")), "Failed to read %ld bytes from %s.", len, path);
     }
     fclose(f);
     json[len] = '\0';
-    if (2 <= argc) {
-	parse_options(argv[1], &options);
-    }
-    obj = oj_parse(json, &options);
+    obj = oj_parse(json, &options, &err);
     if (max_stack < len) {
 	xfree(json);
+    }
+    if (err_has(&err)) {
+	oj_err_raise(&err);
     }
     return obj;
 }
@@ -625,85 +643,6 @@ to_file(int argc, VALUE *argv, VALUE self) {
     Check_Type(*argv, T_STRING);
     oj_write_obj_to_file(argv[1], StringValuePtr(*argv), &copts);
 
-    return Qnil;
-}
-
-/* call-seq: saj_parse(handler, io)
- *
- * Parses an IO stream or file containing an JSON document. Raises an exception
- * if the JSON is malformed.
- * @param [Oj::Saj] handler SAJ (responds to Oj::Saj methods) like handler
- * @param [IO|String] io IO Object to read from
- */
-static VALUE
-saj_parse(int argc, VALUE *argv, VALUE self) {
-    struct _Options	copts = oj_default_options;
-    char		*json = 0;
-    size_t		len = 0;
-    VALUE		input = argv[1];
-
-    if (argc < 2) {
-	rb_raise(rb_eArgError, "Wrong number of arguments to saj_parse.\n");
-    }
-    if (rb_type(input) == T_STRING) {
-	// the json string gets modified so make a copy of it
-	len = RSTRING_LEN(input) + 1;
-	if (copts.max_stack < len) {
-	    json = ALLOC_N(char, len);
-	} else {
-	    json = ALLOCA_N(char, len);
-	}
-	strcpy(json, StringValuePtr(input));
-    } else {
-	VALUE	clas = rb_obj_class(input);
-	VALUE	s;
-
-	if (oj_stringio_class == clas) {
-	    s = rb_funcall2(input, oj_string_id, 0, 0);
-	    len = RSTRING_LEN(s) + 1;
-	    if (copts.max_stack < len) {
-		json = ALLOC_N(char, len);
-	    } else {
-		json = ALLOCA_N(char, len);
-	    }
-	    strcpy(json, StringValuePtr(s));
-#ifndef JRUBY_RUBY
-#if !IS_WINDOWS
-	    // JRuby gets confused with what is the real fileno.
-	} else if (rb_respond_to(input, oj_fileno_id) && Qnil != (s = rb_funcall(input, oj_fileno_id, 0))) {
-	    int		fd = FIX2INT(s);
-	    ssize_t	cnt;
-
-	    len = lseek(fd, 0, SEEK_END);
-	    lseek(fd, 0, SEEK_SET);
-	    if (copts.max_stack < len) {
-		json = ALLOC_N(char, len + 1);
-	    } else {
-		json = ALLOCA_N(char, len + 1);
-	    }
-	    if (0 >= (cnt = read(fd, json, len)) || cnt != (ssize_t)len) {
-		rb_raise(rb_eIOError, "failed to read from IO Object.");
-	    }
-	    json[len] = '\0';
-#endif
-#endif
-	} else if (rb_respond_to(input, oj_read_id)) {
-	    s = rb_funcall2(input, oj_read_id, 0, 0);
-	    len = RSTRING_LEN(s) + 1;
-	    if (copts.max_stack < len) {
-		json = ALLOC_N(char, len);
-	    } else {
-		json = ALLOCA_N(char, len);
-	    }
-	    strcpy(json, StringValuePtr(s));
-	} else {
-	    rb_raise(rb_eArgError, "saj_parse() expected a String or IO Object.");
-	}
-    }
-    oj_saj_parse(*argv, json);
-    if (copts.max_stack < len) {
-	xfree(json);
-    }
     return Qnil;
 }
 
@@ -1070,7 +1009,8 @@ void Init_oj() {
     rb_define_module_function(Oj, "dump", dump, -1);
     rb_define_module_function(Oj, "to_file", to_file, -1);
 
-    rb_define_module_function(Oj, "saj_parse", saj_parse, -1);
+    rb_define_module_function(Oj, "sajkey_parse", oj_sajkey_parse, -1);
+    rb_define_module_function(Oj, "saj_parse", oj_saj_parse, -1);
 
     oj_add_value_id = rb_intern("add_value");
     oj_array_end_id = rb_intern("array_end");
@@ -1193,22 +1133,6 @@ void Init_oj() {
     pthread_mutex_init(&oj_cache_mutex, 0);
 #endif
     oj_init_doc();
-}
-
-void
-_oj_raise_error(const char *msg, const char *json, const char *current, const char* file, int line) {
-    int	jline = 1;
-    int	col = 1;
-
-    for (; json < current && '\n' != *current; current--) {
-	col++;
-    }
-    for (; json < current; current--) {
-	if ('\n' == *current) {
-	    jline++;
-	}
-    }
-    rb_raise(oj_parse_error_class, "%s at line %d, column %d [%s:%d]", msg, jline, col, file, line);
 }
 
 // mimic JSON documentation

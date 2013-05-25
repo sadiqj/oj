@@ -32,6 +32,12 @@ A fast JSON parser and Object marshaller as a Ruby gem.
 
 ## <a name="release">Release Notes</a>
 
+### Release 2.0.14
+
+ - TBD Reduced default max_stack value to 4095
+
+ - TBD Handler cleanup after exceptions better.
+
 ### Release 2.0.13
 
  - Mimic is better at masking out json gem but the oj_mimic_json gem does not

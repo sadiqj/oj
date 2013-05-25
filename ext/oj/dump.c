@@ -1304,7 +1304,7 @@ dump_attr_cb(ID key, VALUE value, Out out) {
 
 static void
 dump_obj_attrs(VALUE obj, VALUE clas, slot_t id, int depth, Out out) {
-    size_t	size;
+    size_t	size = 0;
     int		d2 = depth + 1;
 
     if (out->end - out->cur <= 2) {

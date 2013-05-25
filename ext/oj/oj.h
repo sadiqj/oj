@@ -65,7 +65,7 @@ enum st_retval {ST_CONTINUE = 0, ST_STOP = 1, ST_DELETE = 2, ST_CHECK};
 #endif
 #endif
 
-#define raise_error(msg, xml, current) _oj_raise_error(msg, xml, current, __FILE__, __LINE__)
+#include "err.h"
 
 #define MAX_ODD_ARGS	10
 
@@ -161,15 +161,14 @@ typedef struct _Leaf {
     uint8_t		value_type;
 } *Leaf;
 
-extern VALUE	oj_parse(char *json, Options options);
-extern void	oj_saj_parse(VALUE handler, char *json);
+extern VALUE	oj_parse(char *json, Options options, Err err);
+extern VALUE	oj_sajkey_parse(int argc, VALUE *argv, VALUE self);
+extern VALUE	oj_saj_parse(int argc, VALUE *argv, VALUE self);
 
 extern void	oj_dump_obj_to_json(VALUE obj, Options copts, Out out);
 extern void	oj_write_obj_to_file(VALUE obj, const char *path, Options copts);
 extern void	oj_dump_leaf_to_json(Leaf leaf, Options copts, Out out);
 extern void	oj_write_leaf_to_file(Leaf leaf, const char *path, Options copts);
-
-extern void	_oj_raise_error(const char *msg, const char *xml, const char *current, const char* file, int line);
 
 extern void	oj_init_doc(void);
 
@@ -186,7 +185,6 @@ extern VALUE	oj_bigdecimal_class;
 extern VALUE	oj_date_class;
 extern VALUE	oj_datetime_class;
 extern VALUE	oj_doc_class;
-extern VALUE	oj_parse_error_class;
 extern VALUE	oj_stringio_class;
 extern VALUE	oj_struct_class;
 extern VALUE	oj_time_class;
@@ -198,11 +196,13 @@ extern ID	oj_array_end_id;
 extern ID	oj_array_start_id;
 extern ID	oj_as_json_id;
 extern ID	oj_error_id;
+extern ID	oj_fileno_id;
 extern ID	oj_hash_end_id;
 extern ID	oj_hash_start_id;
 extern ID	oj_instance_variables_id;
 extern ID	oj_json_create_id;
 extern ID	oj_new_id;
+extern ID	oj_read_id;
 extern ID	oj_string_id;
 extern ID	oj_to_hash_id;
 extern ID	oj_to_json_id;

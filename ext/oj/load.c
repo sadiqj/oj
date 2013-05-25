@@ -61,6 +61,7 @@ typedef struct _ParseInfo {
     CircArray	circ_array;
     Options	options;
     char	*stack_min;
+    struct _Err	err;
 } *ParseInfo;
 
 static CircArray	circ_array_new(void);
@@ -1040,12 +1041,13 @@ read_quoted_value(ParseInfo pi) {
 }
 
 VALUE
-oj_parse(char *json, Options options) {
+oj_parse(char *json, Options options, Err err) {
     VALUE		obj;
     struct _ParseInfo	pi;
 
     if (0 == json) {
-	raise_error("Invalid arg, xml string can not be null", json, 0);
+	oj_err_set(err, rb_eArgError, "Invalid arg, JSON string can not be null");
+	return Qundef;
     }
     /* skip UTF-8 BOM if present */
     if (0xEF == (uint8_t)*json && 0xBB == (uint8_t)json[1] && 0xBF == (uint8_t)json[2]) {
@@ -1059,6 +1061,7 @@ oj_parse(char *json, Options options) {
 	pi.circ_array = circ_array_new();
     }
     pi.options = options;
+    err_init(&pi.err);
 #if IS_WINDOWS
     pi.stack_min = (char*)&obj - (512 * 1024); // assume a 1M stack and give half to ruby
 #else
@@ -1067,7 +1070,7 @@ oj_parse(char *json, Options options) {
 
 	// When run under make on linux the limit is not reported corrected and is infinity even though
 	// the return code indicates no error. That forces the rlim_cur value as well as the return code.
-	if (0 == getrlimit(RLIMIT_STACK, &lim) && RLIM_INFINITY != lim.rlim_cur) {
+	if (0 == getrlimit(RLIMIT_STACK, &lim) && RLIM_INFINITY != lim.rlim_cur && 0 > STACK_GROW_DIRECTION) {
 	    pi.stack_min = (void*)((char*)&obj - (lim.rlim_cur / 4 * 3)); // let 3/4ths of the stack be used only
 	} else {
 	    pi.stack_min = 0; // indicates not to check stack limit
@@ -1078,12 +1081,14 @@ oj_parse(char *json, Options options) {
     if (Yes == options->circular) {
 	circ_array_free(pi.circ_array);
     }
-    if (Qundef == obj) {
-	raise_error("no object read", pi.str, pi.s);
+    if (err_has(&pi.err) || Qundef == obj) {
+	*err = pi.err;
+	return Qundef;
     }
     next_non_white(&pi);
     if ('\0' != *pi.s) {
-	raise_error("invalid format, extra characters", pi.str, pi.s);
+	oj_err_set(err, oj_parse_error_class, "invalid format, extra characters", pi.str, pi.s);
+	return Qundef;
     }
     return obj;
 }

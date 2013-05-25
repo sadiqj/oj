@@ -120,7 +120,7 @@ class Juice < ::Test::Unit::TestCase
                    :time_format=>:unix,
                    :bigdecimal_as_decimal=>true,
                    :bigdecimal_load=>false,
-                   :max_stack=>65536,
+                   :max_stack=>4095,
                    :create_id=>'json_class'}, opts)
   end
 
@@ -137,7 +137,7 @@ class Juice < ::Test::Unit::TestCase
       :time_format=>:unix,
       :bigdecimal_as_decimal=>true,
       :bigdecimal_load=>false,
-      :max_stack=>65536,
+      :max_stack=>4095,
       :create_id=>'json_class'}
     o2 = {
       :indent=>4,

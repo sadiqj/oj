@@ -38,8 +38,6 @@
 typedef struct _Err {
     VALUE	clas;
     char	msg[128];
-    int		line;
-    int		col;
 } *Err;
 
 extern VALUE	oj_parse_error_class;
@@ -56,8 +54,6 @@ inline static void
 err_init(Err e) {
     e->clas = Qnil;
     *e->msg = '\0';
-    e->line = 0;
-    e->col = 0;
 }
 
 inline static int

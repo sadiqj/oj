@@ -29,7 +29,7 @@ $json = %{{
   "boolean" : true
 }}
 
-class AllSaj < Oj::Saj
+class AllHandler < Oj::ScHandler
   attr_accessor :calls
 
   def initialize()
@@ -56,58 +56,54 @@ class AllSaj < Oj::Saj
     @calls << [:add_value, value]
   end
 
-  def error(message, line, column)
-    @calls << [:error, message, line, column]
-  end
-
-end # AllSaj
+end # AllHandler
 
 class SajTest < ::Test::Unit::TestCase
 
   def test_nil
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{null}
     Oj.saj_parse(handler, json)
     assert_equal([[:add_value, nil]], handler.calls)
   end
 
   def test_true
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{true}
     Oj.saj_parse(handler, json)
     assert_equal([[:add_value, true]], handler.calls)
   end
 
   def test_false
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{false}
     Oj.saj_parse(handler, json)
     assert_equal([[:add_value, false]], handler.calls)
   end
 
   def test_string
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{"a string"}
     Oj.saj_parse(handler, json)
     assert_equal([[:add_value, 'a string']], handler.calls)
   end
 
   def test_fixnum
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{12345}
     Oj.saj_parse(handler, json)
     assert_equal([[:add_value, 12345]], handler.calls)
   end
 
   def test_float
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{12345.6789}
     Oj.saj_parse(handler, json)
     assert_equal([[:add_value, 12345.6789]], handler.calls)
   end
 
   def test_float_exp
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{12345.6789e7}
     Oj.saj_parse(handler, json)
     assert_equal(1, handler.calls.size)
@@ -116,7 +112,7 @@ class SajTest < ::Test::Unit::TestCase
   end
 
   def test_array_empty
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{[]}
     Oj.saj_parse(handler, json)
     assert_equal([[:array_start],
@@ -124,7 +120,7 @@ class SajTest < ::Test::Unit::TestCase
   end
 
   def test_array
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{[true,false]}
     Oj.saj_parse(handler, json)
     assert_equal([[:array_start],
@@ -134,7 +130,7 @@ class SajTest < ::Test::Unit::TestCase
   end
 
   def test_hash_empty
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{{}}
     Oj.saj_parse(handler, json)
     assert_equal([[:hash_start],
@@ -142,7 +138,7 @@ class SajTest < ::Test::Unit::TestCase
   end
 
   def test_hash
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{{"one":true,"two":false}}
     Oj.saj_parse(handler, json)
     assert_equal([[:hash_start],
@@ -154,7 +150,7 @@ class SajTest < ::Test::Unit::TestCase
   end
 
   def test_full
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     Oj.saj_parse(handler, $json)
     assert_equal([[:hash_start],
                   [:add_value, 'array'],
@@ -184,11 +180,13 @@ class SajTest < ::Test::Unit::TestCase
   end
 
   def test_fixnum_bad
-    handler = AllSaj.new()
+    handler = AllHandler.new()
     json = %{12345xyz}
-    Oj.saj_parse(handler, json)
-    assert_equal([[:add_value, 12345],
-                  [:error, "unexpected character at line 1, column 6 [parse.c:473]", 1, 6]], handler.calls)
+    begin
+      Oj.saj_parse(handler, json)
+    rescue Exception => e
+      assert_equal("unexpected character at line 1, column 6 [parse.c:473]", e.message)
+    end
   end
 
 end

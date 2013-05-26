@@ -498,7 +498,10 @@ load_with_opts(VALUE input, Options copts) {
  *
  * Parses a JSON document String into a Hash, Array, String, Fixnum, Float,
  * true, false, or nil. Raises an exception if the JSON is malformed or the
- * classes specified are not valid.
+ * classes specified are not valid. If the string input is not a valid JSON
+ * document (an empty string is not a valid JSON document) an exception is
+ * raised.
+ *
  * @param [String] json JSON String
  * @param [Hash] options load options (same as default_options)
  */
@@ -518,9 +521,10 @@ load(int argc, VALUE *argv, VALUE self) {
 /* Document-method: load_file
  *   call-seq: load_file(path, options) => Hash, Array, String, Fixnum, Float, true, false, or nil
  *
- * Parses a JSON document from a file into a Hash, Array, String, Fixnum,
- * Float, true, false, or nil. Raises an exception if the JSON is malformed or
- * the classes specified are not valid.
+ * Parses a JSON document from a file into a Hash, Array, String, Fixnum, Float,
+ * true, false, or nil. Raises an exception if the JSON is malformed or the
+ * classes specified are not valid. If the input file is not a valid JSON
+ * document (an empty file is not a valid JSON document) an exception is raised.
  *
  * @param [String] path path to a file containing a JSON document
  * @param [Hash] options load options (same as default_options)
@@ -1011,7 +1015,7 @@ void Init_oj() {
 
     rb_define_module_function(Oj, "saj_parse", oj_saj_parse, -1);
     rb_define_module_function(Oj, "sc_parse", oj_sc_parse, -1);
-    rb_define_module_function(Oj, "strict_parse", oj_strict_parse, -1);
+    rb_define_module_function(Oj, "strict_parse", oj_strict_parse, -1); // TBD change to strict_load
 
     oj_add_value_id = rb_intern("add_value");
     oj_array_end_id = rb_intern("array_end");

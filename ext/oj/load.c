@@ -1070,7 +1070,7 @@ oj_parse(char *json, Options options, Err err) {
 
 	// When run under make on linux the limit is not reported corrected and is infinity even though
 	// the return code indicates no error. That forces the rlim_cur value as well as the return code.
-	if (0 == getrlimit(RLIMIT_STACK, &lim) && RLIM_INFINITY != lim.rlim_cur && 0 > STACK_GROW_DIRECTION) {
+	if (0 == getrlimit(RLIMIT_STACK, &lim) && RLIM_INFINITY != lim.rlim_cur) {
 	    pi.stack_min = (void*)((char*)&obj - (lim.rlim_cur / 4 * 3)); // let 3/4ths of the stack be used only
 	} else {
 	    pi.stack_min = 0; // indicates not to check stack limit

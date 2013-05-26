@@ -32,22 +32,17 @@ A fast JSON parser and Object marshaller as a Ruby gem.
 
 ## <a name="release">Release Notes</a>
 
-### Release 2.0.14
+### Release 2.0.15
+
+ - This version is a major rewrite of the parser. The parser now uses a constant
+   stack size no matter how deeply nested the JSON document is. It is also
+   considerably faster than the previous parser as indicated on the
+   [Oj performance comparison page](http://www.ohler.com/oj/performance_comparison.html).
+
 
  - TBD Reduced default max_stack value to 4095
 
  - TBD Handler cleanup after exceptions better.
-
-### Release 2.0.13
-
- - Mimic is better at masking out json gem but the oj_mimic_json gem does not
-   work with ruby 2.0.0 correctly. The Oj.mimic_JSON() method should be called
-   directly either before or after the json gem is required. Depending on the
-   situation one may work better than the other. Oj.mimic_JSON() may now be
-   called multiple times.
-
- - Changed dump to put closing array brackets and closing object curlies on the
-   line following the last element if :indent is set to greater than zero.
 
 ## <a name="description">Description</a>
 

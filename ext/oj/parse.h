@@ -50,5 +50,6 @@ typedef struct _ParseInfo {
 } *ParseInfo;
 
 extern void	oj_parse2(ParseInfo pi);
+extern void	oj_set_error_at(ParseInfo pi, VALUE err_clas, const char* file, int line, const char *format, ...);
 
 #endif /* __OJ_PARSE_H__ */

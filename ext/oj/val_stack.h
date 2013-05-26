@@ -138,6 +138,14 @@ stack_prev(ValStack stack) {
     return stack->tail;
 }
 
+inline static VALUE
+stack_head_val(ValStack stack) {
+    if (Qundef != stack->head->val) {
+	return stack->head->val;
+    }
+    return Qnil;
+}
+
 inline static Val
 stack_pop(ValStack stack) {
     if (stack->head < stack->tail) {
@@ -160,12 +168,16 @@ stack_add_value(ValStack stack, ValType type) {
 	case NEXT_HASH_NEW:
 	case NEXT_HASH_KEY:
 	    if (TYPE_STR == type) {
+		stack_push(stack, Qundef, TYPE_STR);
+		val++;
 		val->next = NEXT_HASH_COLON;
 	    } else {
 		return NEXT_HASH_KEY;
 	    }
 	    break;
 	case NEXT_HASH_VALUE:
+	    stack->tail--; // effective a pop but leave val intact for use after return
+	    val--;
 	    val->next = NEXT_HASH_COMMA;
 	    break;
 	case NEXT_HASH_COMMA:

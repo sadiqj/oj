@@ -64,6 +64,7 @@ static void add_value(ParseInfo pi, VALUE val) {
 		Val	keyVal = stack_prev(&pi->stack);
 
 		if (0 != keyVal) {
+		    // TBD if a string and symbolize option then symbolize (can use cache)
 		    rb_hash_aset(parent->val, keyVal->val, val);
 		} else {
 		    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected hash key");

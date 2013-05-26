@@ -1009,8 +1009,8 @@ void Init_oj() {
     rb_define_module_function(Oj, "dump", dump, -1);
     rb_define_module_function(Oj, "to_file", to_file, -1);
 
-    rb_define_module_function(Oj, "sajkey_parse", oj_sajkey_parse, -1);
     rb_define_module_function(Oj, "saj_parse", oj_saj_parse, -1);
+    rb_define_module_function(Oj, "sc_parse", oj_sc_parse, -1);
 
     oj_add_value_id = rb_intern("add_value");
     oj_array_end_id = rb_intern("array_end");

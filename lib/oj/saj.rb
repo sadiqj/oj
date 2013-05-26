@@ -1,14 +1,14 @@
 module Oj
   # A SAX style parse handler for JSON hence the acronym SAJ for Simple API for
-  # JSON. The Oj::SajKey handler class should be subclassed and then used with
-  # the Oj.sajkey_parse() method. The SajKey methods will then be called as the
+  # JSON. The Oj::Saj handler class should be subclassed and then used with
+  # the Oj.sajkey_parse() method. The Saj methods will then be called as the
   # file is parsed.
   #
   # @example
   # 
   #  require 'oj'
   #
-  #  class MySaj < ::Oj::SajKey
+  #  class MySaj < ::Oj::Saj
   #    def initialize()
   #      @hash_cnt = 0
   #    end
@@ -34,7 +34,7 @@ module Oj
   #    def add_value(value, key); end
   #    def error(message, line, column); end
   #
-  class SajKey
+  class Saj
     # Create a new instance of the Saj handler class.
     def initialize()
     end
@@ -62,5 +62,5 @@ module Oj
     def error(message, line, column)
     end
     
-  end # SajKey
+  end # Saj
 end # Oj

@@ -162,8 +162,8 @@ typedef struct _Leaf {
 } *Leaf;
 
 extern VALUE	oj_parse(char *json, Options options, Err err);
-extern VALUE	oj_sajkey_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_saj_parse(int argc, VALUE *argv, VALUE self);
+extern VALUE	oj_sc_parse(int argc, VALUE *argv, VALUE self);
 
 extern void	oj_dump_obj_to_json(VALUE obj, Options copts, Out out);
 extern void	oj_write_obj_to_file(VALUE obj, const char *path, Options copts);

@@ -76,7 +76,7 @@ static void add_value(ParseInfo pi, VALUE val) {
 }
 
 VALUE
-oj_saj_parse(int argc, VALUE *argv, VALUE self) {
+oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     struct _ParseInfo	pi;
     char		*buf = 0;
     VALUE		input;

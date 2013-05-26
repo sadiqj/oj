@@ -728,7 +728,7 @@ sajkey_parse(VALUE handler, char *json) {
  * @param [IO|String] io IO Object to read from
  */
 VALUE
-oj_sajkey_parse(int argc, VALUE *argv, VALUE self) {
+oj_saj_parse(int argc, VALUE *argv, VALUE self) {
     struct _Options	copts = oj_default_options;
     char		*json = 0;
     size_t		len = 0;

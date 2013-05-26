@@ -24,11 +24,17 @@ A fast JSON parser and Object marshaller as a Ruby gem.
 
 ## <a name="links">Links of Interest</a>
 
-[Need for Speed](http://www.ohler.com/dev/need_for_speed/need_for_speed.html) for an overview of how Oj::Doc was designed.
-
 *Fast XML parser and marshaller on RubyGems*: https://rubygems.org/gems/ox
 
 *Fast XML parser and marshaller on GitHub*: https://github.com/ohler55/ox
+
+[Oj Performance Comparison](http://www.ohler.com/oj/misc/performance_comparison.html) compares Oj performance to other JSON parsers.
+
+[Oj Sample Code](http://www.ohler.com/oj/misc/samples.html) some sample code.
+
+[Oj Object Encoding Format](http://www.ohler.com/oj/misc/samples.html) describes the OJ Object JSON encoding format.
+
+[Need for Speed](http://www.ohler.com/dev/need_for_speed/need_for_speed.html) for an overview of how Oj::Doc was designed.
 
 ## <a name="release">Release Notes</a>
 
@@ -37,7 +43,7 @@ A fast JSON parser and Object marshaller as a Ruby gem.
  - This version is a major rewrite of the parser. The parser now uses a constant
    stack size no matter how deeply nested the JSON document is. It is also
    considerably faster than the previous parser as indicated on the
-   [Oj performance comparison page](http://www.ohler.com/oj/performance_comparison.html).
+   [Oj performance comparison page](http://www.ohler.com/oj/misc/performance_comparison.html).
 
 
  - TBD Reduced default max_stack value to 4095

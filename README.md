@@ -45,7 +45,6 @@ A fast JSON parser and Object marshaller as a Ruby gem.
    considerably faster than the previous parser as indicated on the
    [Oj performance comparison page](http://www.ohler.com/oj/misc/performance_comparison.html).
 
-
  - TBD Reduced default max_stack value to 4095
 
  - TBD Handler cleanup after exceptions better.

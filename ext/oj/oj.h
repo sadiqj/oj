@@ -166,6 +166,8 @@ extern VALUE	oj_saj_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_sc_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_strict_parse(int argc, VALUE *argv, VALUE self);
 
+extern void	oj_parse_options(VALUE ropts, Options copts);
+
 extern void	oj_dump_obj_to_json(VALUE obj, Options copts, Out out);
 extern void	oj_write_obj_to_file(VALUE obj, const char *path, Options copts);
 extern void	oj_dump_leaf_to_json(Leaf leaf, Options copts, Out out);

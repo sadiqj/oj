@@ -45,9 +45,14 @@ A fast JSON parser and Object marshaller as a Ruby gem.
    considerably faster than the previous parser as indicated on the
    [Oj performance comparison page](http://www.ohler.com/oj/misc/performance_comparison.html).
 
+ - Oj.strict_load() was renamed to Oj.safe_load() to better represent its
+   functionality. A new Oj.strict_load() is simply Oj.load() with :mode set to
+   :strict.
+
  - TBD Reduced default max_stack value to 4095
 
  - TBD Handler cleanup after exceptions better.
+
 
 ## <a name="description">Description</a>
 

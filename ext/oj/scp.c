@@ -55,23 +55,32 @@ respond_to(VALUE obj, ID method) {
 }
 
 
-static void start_hash(ParseInfo pi) {
+static VALUE
+start_hash(ParseInfo pi) {
     rb_funcall((VALUE)pi->cbc, oj_hash_start_id, 0);
+
+    return Qnil;
 }
 
-static void end_hash(ParseInfo pi) {
+static void
+end_hash(ParseInfo pi) {
     rb_funcall((VALUE)pi->cbc, oj_hash_end_id, 0);
 }
 
-static void start_array(ParseInfo pi) {
+static VALUE
+start_array(ParseInfo pi) {
     rb_funcall((VALUE)pi->cbc, oj_array_start_id, 0);
+
+    return Qnil;
 }
 
-static void end_array(ParseInfo pi) {
+static void
+end_array(ParseInfo pi) {
     rb_funcall((VALUE)pi->cbc, oj_array_end_id, 0);
 }
 
-static void add_value(ParseInfo pi, VALUE val) {
+static void
+add_value(ParseInfo pi, VALUE val) {
      rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, val);
 }
 
@@ -88,6 +97,9 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     handler = *argv;;
     input = argv[1];
     pi.options = oj_default_options;
+    if (3 == argc) {
+	oj_parse_options(argv[2], &pi.options);
+    }
     pi.cbc = (void*)handler;
 
     pi.start_hash = respond_to(handler, oj_hash_start_id) ? start_hash : 0;

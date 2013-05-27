@@ -343,8 +343,8 @@ set_def_opts(VALUE self, VALUE opts) {
     return Qnil;
 }
 
-static void
-parse_options(VALUE ropts, Options copts) {
+void
+oj_parse_options(VALUE ropts, Options copts) {
     struct _YesNoOpt	ynos[] = {
 	{ circular_sym, &copts->circular },
 	{ auto_define_sym, &copts->auto_define },
@@ -513,7 +513,7 @@ load(int argc, VALUE *argv, VALUE self) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to load().");
     }
     if (2 <= argc) {
-	parse_options(argv[1], &options);
+	oj_parse_options(argv[1], &options);
     }
     return load_with_opts(*argv, &options);
 }
@@ -543,7 +543,7 @@ load_file(int argc, VALUE *argv, VALUE self) {
     err_init(&err);
     Check_Type(*argv, T_STRING);
     if (2 <= argc) {
-	parse_options(argv[1], &options);
+	oj_parse_options(argv[1], &options);
     }
     path = StringValuePtr(*argv);
     if (0 == (f = fopen(path, "r"))) {
@@ -576,7 +576,7 @@ load_file(int argc, VALUE *argv, VALUE self) {
     return obj;
 }
 
-/* call-seq: strict_load(doc)
+/* call-seq: safe_load(doc)
  *
  * Loads a JSON document in strict mode with auto_define and symbol_keys turned off. This function should be safe to use
  * with JSON received on an unprotected public interface.
@@ -584,7 +584,7 @@ load_file(int argc, VALUE *argv, VALUE self) {
  * @return [Hash|Array|String|Fixnum|Bignum|BigDecimal|nil|True|False]
  */
 static VALUE
-strict_load(VALUE self, VALUE doc) {
+safe_load(VALUE self, VALUE doc) {
     struct _Options	options = oj_default_options;
 
     options.auto_define = No;
@@ -608,7 +608,7 @@ dump(int argc, VALUE *argv, VALUE self) {
     VALUE		rstr;
     
     if (2 == argc) {
-	parse_options(argv[1], &copts);
+	oj_parse_options(argv[1], &copts);
     }
     out.buf = buf;
     out.end = buf + sizeof(buf) - 10;
@@ -642,7 +642,7 @@ to_file(int argc, VALUE *argv, VALUE self) {
     struct _Options	copts = oj_default_options;
     
     if (3 == argc) {
-	parse_options(argv[2], &copts);
+	oj_parse_options(argv[2], &copts);
     }
     Check_Type(*argv, T_STRING);
     oj_write_obj_to_file(argv[1], StringValuePtr(*argv), &copts);
@@ -984,7 +984,7 @@ define_mimic_json(int argc, VALUE *argv, VALUE self) {
     object_nl_sym = ID2SYM(rb_intern("object_nl"));			rb_gc_register_address(&object_nl_sym);
     space_before_sym = ID2SYM(rb_intern("space_before"));		rb_gc_register_address(&space_before_sym);
     space_sym = ID2SYM(rb_intern("space"));				rb_gc_register_address(&space_sym);
-    symbolize_names_sym = ID2SYM(rb_intern("symbolize_names"));	rb_gc_register_address(&symbolize_names_sym);
+    symbolize_names_sym = ID2SYM(rb_intern("symbolize_names"));		rb_gc_register_address(&symbolize_names_sym);
 
     oj_default_options.mode = CompatMode;
     oj_default_options.ascii_only = Yes;
@@ -1009,13 +1009,14 @@ void Init_oj() {
     rb_define_module_function(Oj, "mimic_JSON", define_mimic_json, -1);
     rb_define_module_function(Oj, "load", load, -1);
     rb_define_module_function(Oj, "load_file", load_file, -1);
-    rb_define_module_function(Oj, "strict_load", strict_load, 1);
+    rb_define_module_function(Oj, "safe_load", safe_load, 1);
+    rb_define_module_function(Oj, "strict_load", oj_strict_parse, -1);
+
     rb_define_module_function(Oj, "dump", dump, -1);
     rb_define_module_function(Oj, "to_file", to_file, -1);
 
     rb_define_module_function(Oj, "saj_parse", oj_saj_parse, -1);
     rb_define_module_function(Oj, "sc_parse", oj_sc_parse, -1);
-    rb_define_module_function(Oj, "strict_parse", oj_strict_parse, -1); // TBD change to strict_load
 
     oj_add_value_id = rb_intern("add_value");
     oj_array_end_id = rb_intern("array_end");

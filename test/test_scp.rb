@@ -58,7 +58,7 @@ class AllHandler < Oj::ScHandler
 
 end # AllHandler
 
-class SajTest < ::Test::Unit::TestCase
+class ScpTest < ::Test::Unit::TestCase
 
   def test_nil
     handler = AllHandler.new()
@@ -149,6 +149,18 @@ class SajTest < ::Test::Unit::TestCase
                   [:hash_end]], handler.calls)
   end
 
+  def test_hash_sym
+    handler = AllHandler.new()
+    json = %{{"one":true,"two":false}}
+    Oj.sc_parse(handler, json, :symbol_keys => true)
+    assert_equal([[:hash_start],
+                  [:add_value, :one],
+                  [:add_value, true],
+                  [:add_value, :two],
+                  [:add_value, false],
+                  [:hash_end]], handler.calls)
+  end
+
   def test_full
     handler = AllHandler.new()
     Oj.sc_parse(handler, $json)
@@ -185,7 +197,7 @@ class SajTest < ::Test::Unit::TestCase
     begin
       Oj.sc_parse(handler, json)
     rescue Exception => e
-      assert_equal("unexpected character at line 1, column 6 [parse.c:477]", e.message)
+      assert_equal("unexpected character at line 1, column 6 [parse.c:468]", e.message)
     end
   end
 

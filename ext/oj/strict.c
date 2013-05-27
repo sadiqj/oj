@@ -31,23 +31,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "oj.h"
 #include "err.h"
 #include "parse.h"
 
-static void start_hash(ParseInfo pi) {
-    stack_peek(&pi->stack)->val = rb_hash_new();
-}
-
-static void start_array(ParseInfo pi) {
-    stack_peek(&pi->stack)->val = rb_ary_new();
-}
-
-static void add_value(ParseInfo pi, VALUE val) {
+static void
+add_value(ParseInfo pi, VALUE val) {
     Val	parent = stack_peek(&pi->stack);
 
     if (0 == parent) {
@@ -64,7 +55,6 @@ static void add_value(ParseInfo pi, VALUE val) {
 		Val	keyVal = stack_prev(&pi->stack);
 
 		if (0 != keyVal) {
-		    // TBD if a string and symbolize option then symbolize (can use cache)
 		    rb_hash_aset(parent->val, keyVal->val, val);
 		} else {
 		    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected hash key");
@@ -76,6 +66,24 @@ static void add_value(ParseInfo pi, VALUE val) {
 	    break;
 	}
     }
+}
+
+static VALUE
+start_hash(ParseInfo pi) {
+    VALUE	hash = rb_hash_new();
+
+    add_value(pi, hash);
+
+    return hash;
+}
+
+static VALUE
+start_array(ParseInfo pi) {
+    VALUE	array = rb_ary_new();
+
+    add_value(pi, array);
+
+    return array;
 }
 
 VALUE
@@ -90,6 +98,9 @@ oj_strict_parse(int argc, VALUE *argv, VALUE self) {
     }
     input = argv[0];
     pi.options = oj_default_options;
+    if (2 == argc) {
+	oj_parse_options(argv[2], &pi.options);
+    }
     pi.cbc = (void*)0;
 
     pi.start_hash = start_hash;

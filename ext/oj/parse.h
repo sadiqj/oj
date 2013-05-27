@@ -42,9 +42,9 @@ typedef struct _ParseInfo {
     struct _Options	options;
     void		*cbc;
     struct _ValStack	stack;
-    void		(*start_hash)(struct _ParseInfo *pi);
+    VALUE		(*start_hash)(struct _ParseInfo *pi);
     void		(*end_hash)(struct _ParseInfo *pi);
-    void		(*start_array)(struct _ParseInfo *pi);
+    VALUE		(*start_array)(struct _ParseInfo *pi);
     void		(*end_array)(struct _ParseInfo *pi);
     void		(*add_value)(struct _ParseInfo *pi, VALUE val);
 } *ParseInfo;

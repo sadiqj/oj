@@ -134,6 +134,14 @@ stack_peek(ValStack stack) {
 }
 
 inline static Val
+stack_peek_up(ValStack stack) {
+    if (stack->head < stack->tail - 1) {
+	return stack->tail - 2;
+    }
+    return 0;
+}
+
+inline static Val
 stack_prev(ValStack stack) {
     return stack->tail;
 }

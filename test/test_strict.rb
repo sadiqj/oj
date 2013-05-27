@@ -61,11 +61,10 @@ class StrictJuice < ::Test::Unit::TestCase
   def test_string
     dump_and_load('', false)
     dump_and_load('abc', false)
-    #dump_and_load("abc\ndef", true) # TBD
-    #dump_and_load("a\u0041", true) # TBD
+    dump_and_load("abc\ndef", false)
+    dump_and_load("a\u0041", true)
   end
 
-=begin
   def test_encode
     opts = Oj.default_options
     Oj.default_options = { :ascii_only => false }
@@ -88,7 +87,7 @@ class StrictJuice < ::Test::Unit::TestCase
     json2 = Oj.dump(obj, :ascii_only => true)
     assert_equal(json, json2)
   end
-=end
+
   def test_array
     dump_and_load([], false)
     dump_and_load([true, false], false)
@@ -113,7 +112,6 @@ class StrictJuice < ::Test::Unit::TestCase
     dump_and_load(BigDecimal.new('3.14159265358979323846'), false)
   end
 
-=begin
   def test_bigdecimal_load
     orig = BigDecimal.new('80.51')
     json = Oj.dump(orig, :mode => :compat, :bigdecimal_as_decimal => true)
@@ -121,9 +119,7 @@ class StrictJuice < ::Test::Unit::TestCase
     assert_equal(BigDecimal, bg.class)
     assert_equal(orig, bg)
   end
-=end
 
-=begin
   # Stream IO
   def test_io_string
     json = %{{
@@ -136,7 +132,6 @@ class StrictJuice < ::Test::Unit::TestCase
     obj = Oj.strict_load(input)
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
-=end
 
   def test_io_file
     filename = 'open_file_test.json'

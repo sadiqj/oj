@@ -99,7 +99,8 @@ oj_strict_parse(int argc, VALUE *argv, VALUE self) {
     input = argv[0];
     pi.options = oj_default_options;
     if (2 == argc) {
-	oj_parse_options(argv[2], &pi.options);
+	oj_parse_options(argv[1], &pi.options);
+	
     }
     pi.cbc = (void*)0;
 
@@ -117,7 +118,7 @@ oj_strict_parse(int argc, VALUE *argv, VALUE self) {
 
 	if (oj_stringio_class == clas) {
 	    s = rb_funcall2(input, oj_string_id, 0, 0);
-	    pi.json = StringValuePtr(input);
+	    pi.json = StringValuePtr(s);
 #ifndef JRUBY_RUBY
 #if !IS_WINDOWS
 	    // JRuby gets confused with what is the real fileno.

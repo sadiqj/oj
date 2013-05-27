@@ -37,11 +37,9 @@
 
 typedef enum {
     TYPE_HASH	= 'h',
-    TYPE_OBJ	= 'o',
     TYPE_ARRAY	= 'a',
     TYPE_STR	= 's',
     TYPE_BOOL	= 'b',
-    TYPE_TIME	= 't',
     TYPE_NUM	= '#',
     TYPE_NULL   = 'n',
     TYPE_ERR	= 'E',
@@ -201,5 +199,6 @@ stack_add_value(ValStack stack, ValType type) {
 }
 
 extern const char*	oj_stack_next_string(ValNext n);
+extern const char*	oj_stack_type_string(ValType t);
 
 #endif /* __OJ_VAL_STACK_H__ */

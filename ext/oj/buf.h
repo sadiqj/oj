@@ -1,4 +1,4 @@
-/* val_stack.c
+/* buf.h
  * Copyright (c) 2011, Peter Ohler
  * All rights reserved.
  * 
@@ -28,36 +28,76 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "val_stack.h"
+#ifndef __OJ_BUF_H__
+#define __OJ_BUF_H__
 
-const char*
-oj_stack_next_string(ValNext n) {
-    switch (n) {
-    case NEXT_ARRAY_NEW:	return "array element or close";
-    case NEXT_ARRAY_ELEMENT:	return "array element";
-    case NEXT_ARRAY_COMMA:	return "comma";
-    case NEXT_HASH_NEW:		return "hash pair or close";
-    case NEXT_HASH_KEY:		return "hash key";
-    case NEXT_HASH_COLON:	return "colon";
-    case NEXT_HASH_VALUE:	return "hash value";
-    case NEXT_HASH_COMMA:	return "comma";
-    case NEXT_NONE:		break;
-    default:			break;
-    }
-    return "nothing";
+#include "ruby.h"
+
+typedef struct _Buf {
+    char	base[1024];
+    char	*head;
+    char	*end;
+    char	*tail;
+} *Buf;
+
+inline static void
+buf_init(Buf buf) {
+    buf->head = buf->base;
+    buf->end = buf->base + sizeof(buf->base);
+    buf->tail = buf->head;
 }
 
-const char*
-oj_stack_type_string(ValType t) {
-    switch (t) {
-    case TYPE_HASH:	return "hash";
-    case TYPE_ARRAY:	return "array";
-    case TYPE_STR:	return "string";
-    case TYPE_BOOL:	return "boolean";
-    case TYPE_NUM:	return "number";
-    case TYPE_NULL:	return "null";
-    case TYPE_ERR:	return "err";
-    default:		break;
+inline static void
+buf_cleanup(Buf buf) {
+    if (buf->base != buf->head) {
+        xfree(buf->head);
     }
-    return "?";
 }
+
+inline static size_t
+buf_len(Buf buf) {
+    return buf->tail - buf->head;
+}
+
+inline static void
+buf_append_string(Buf buf, const char *s, size_t slen) {
+    if (buf->end <= buf->tail + slen) {
+	size_t	len = buf->end - buf->head;
+	size_t	toff = buf->tail - buf->head;
+	size_t	new_len = len + slen + len / 2;
+
+	if (buf->base == buf->head) {
+	    buf->head = ALLOC_N(char, new_len);
+	    memcpy(buf->head, buf->base, len);
+	} else {
+	    REALLOC_N(buf->head, char, new_len);
+	}
+	buf->tail = buf->head + toff;
+	buf->end = buf->head + new_len;
+    }
+    memcpy(buf->tail, s, slen);
+    buf->tail += slen;
+}
+    
+inline static void
+buf_append(Buf buf, char c) {
+    if (buf->end <= buf->tail) {
+	size_t	len = buf->end - buf->head;
+	size_t	toff = buf->tail - buf->head;
+	size_t	new_len = len + len / 2;
+
+	if (buf->base == buf->head) {
+	    buf->head = ALLOC_N(char, new_len);
+	    memcpy(buf->head, buf->base, len);
+	} else {
+	    REALLOC_N(buf->head, char, new_len);
+	}
+	buf->tail = buf->head + toff;
+	buf->end = buf->head + new_len;
+    }
+    *buf->tail = c;
+    buf->tail++;
+    *buf->tail = '\0'; // TBD temp for debugging
+}
+
+#endif /* __OJ_BUF_H__ */

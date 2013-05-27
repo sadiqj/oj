@@ -15,58 +15,9 @@ require 'perf'
 require 'oj'
 #require 'ox'
 
-class Jazz
-  attr_accessor :boolean, :number, :string
-
-  def initialize()
-    @boolean = true
-    @number = 58
-    @string = "A string"
-  end
-
-  def eql?(o)
-    (self.class == o.class &&
-     boolean == o.boolean &&
-     number == o.number &&
-     string == o.string)
-  end
-  alias == eql?
-
-  def to_json(*) # Yajl and JSON have different signatures
-    %{
-{ "json_class":"Jazz",
-  "boolean":#{@boolean},
-  "number":#{@number},
-  "string":"#{@string}"
-}}
-  end
-
-  def to_hash()
-    { 'json_class' => "Jazz",
-      'boolean' => @boolean,
-      'number' => @number,
-      'string' => @string
-    }
-  end
-  alias as_json to_hash
-
-  def to_msgpack(out='')
-    to_hash().to_msgpack(out)
-  end
-
-  def self.json_create(h)
-    j = self.new()
-    j.instance_variable_set(:@boolean, h['boolean'])
-    j.instance_variable_set(:@number, h['number'])
-    j.instance_variable_set(:@string, h['string'])
-    j
-  end
-end
-
 $verbose = false
 $indent = 0
-$iter = 10000
-$with_object = true
+$iter = 20000
 $with_bignum = true
 $with_nums = true
 
@@ -74,7 +25,6 @@ opts = OptionParser.new
 opts.on("-v", "verbose")                                    { $verbose = true }
 opts.on("-c", "--count [Int]", Integer, "iterations")       { |i| $iter = i }
 opts.on("-i", "--indent [Int]", Integer, "indentation")     { |i| $indent = i }
-opts.on("-o", "without objects")                            { $with_object = false }
 opts.on("-b", "without bignum")                             { $with_bignum = false }
 opts.on("-n", "without numbers")                            { $with_nums = false }
 opts.on("-h", "--help", "Show this display")                { puts opts; Process.exit!(0) }
@@ -85,7 +35,7 @@ if $with_nums
     'a' => 'Alpha', # string
     'b' => true,    # boolean
     'c' => 12345,   # number
-    'd' => [ true, [false, [12345, nil], 3.967, ['something', false], nil]], # mix it up array
+    'd' => [ true, [false, [-123456789, nil], 3.967, ['something', false], nil]], # mix it up array
     'e' => { 'one' => 1, 'two' => 2 }, # hash
     'f' => nil,     # nil
     #'g' => 12345678901234567890123456789, # big number
@@ -105,7 +55,6 @@ else
     'i' => [[[[[[[nil]]]]]]]  # deep array, again, not that deep
   }
 end
-$obj['j'] = Jazz.new() if $with_object
 
 Oj.default_options = { :indent => $indent, :mode => :compat }
 
@@ -180,6 +129,9 @@ unless $failed.has_key?('Oj')
   perf.add('Oj', 'load') { Oj.load($obj_json) }
   perf.before('Oj') { Oj.default_options = { :mode => :object} }
 end
+unless $failed.has_key?('Oj:strict')
+  perf.add('Oj:strict', 'strict_load') { Oj.strict_load($json) }
+end
 perf.add('Yajl', 'parse') { Yajl::Parser.parse($json) } unless $failed.has_key?('Yajl')
 perf.add('Ox', 'load') { Ox.load($xml) } unless $failed.has_key?('Ox')
 perf.add('MessagePack', 'unpack') { MessagePack.unpack($msgpack) } unless $failed.has_key?('MessagePack')
@@ -187,37 +139,6 @@ perf.run($iter)
 
 puts
 puts '-' * 80
-puts "Dump/Encode/Generate Performance"
-perf = Perf.new()
-unless $failed.has_key?('JSON::Ext')
-  if 0 == $indent
-    perf.add('JSON::Ext', 'generate') { JSON.generate($obj) }
-  else
-    perf.add('JSON::Ext', 'generate') { JSON.pretty_generate($obj) }
-  end
-  perf.before('JSON::Ext') { JSON.generator = JSON::Ext::Generator }
-end
-unless $failed.has_key?('JSON::Pure')
-  if 0 == $indent
-    perf.add('JSON::Pure', 'generate') { JSON.generate($obj) }
-  else
-    perf.add('JSON::Pure', 'generate') { JSON.pretty_generate($obj) }
-  end
-  perf.before('JSON::Pure') { JSON.generator = JSON::Pure::Generator }
-end
-unless $failed.has_key?('Oj')
-  perf.add('Oj', 'dump') { Oj.dump($obj) }
-  perf.before('Oj') { Oj.default_options = { :mode => :object} }
-end
-unless $failed.has_key?('Oj:compat')
-  perf.add('Oj:compat', 'dump') { Oj.dump($obj) }
-  perf.before('Oj:compat') { Oj.default_options = { :mode => :compat} }
-end
-perf.add('Yajl', 'encode') { Yajl::Encoder.encode($obj) } unless $failed.has_key?('Yajl')
-perf.add('Ox', 'dump') { Ox.dump($obj) } unless $failed.has_key?('Ox')
-perf.add('MessagePack', 'pack') { MessagePack.pack($obj) } unless $failed.has_key?('MessagePack')
-perf.run($iter)
-
 puts
 
 unless $failed.empty?

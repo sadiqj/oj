@@ -3,13 +3,9 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- change Oj::Saj method to not take a key
-- change Oj::Saj to SajKey
- - C wrapper with stack to provide key
+- future
+ - write fast hash for strings to avoid creation of strings
 
-- change to no raise in calls for load and parse
-
-- look at changing inserting \0 to using size all the time and not copying buffer
 
 - allow maps to be used for classnames when encoding and decoding objects
  - build a string to string map/table that allows lookups in either direction
@@ -23,44 +19,3 @@
 Tried a separate thread for the parser and the results were poor. The parsing is 10% to 15% of the total so splitting
 ruby calls and c does not help much and the overhead of swapping data was too high. It was not possible to split ruby
 calls into both threads due to not getting a lock on the ruby environment for object creation.
-
-
-------------------------
-Before changes
-ohler@eye test (master)> perf_strict.rb 
---------------------------------------------------------------------------------
-Load/Parse Performance
-Oj:compat.load 10000 times in 0.168 seconds or 59576.293 load/sec.
-Oj.load 10000 times in 0.145 seconds or 69064.589 load/sec.
-
-Summary:
-   System  time (secs)  rate (ops/sec)
----------  -----------  --------------
-       Oj       0.145       69064.589
-Oj:compat       0.168       59576.293
-
-Comparison Matrix
-(performance factor, 2.0 means row is twice as fast as column)
-                  Oj  Oj:compat
----------  ---------  ---------
-       Oj       1.00       1.16
-Oj:compat       0.86       1.00
-
-
---------------------------------------------------------------------------------
-Dump/Encode/Generate Performance
-Oj.dump 10000 times in 0.045 seconds or 220123.710 dump/sec.
-Oj:compat.dump 10000 times in 0.063 seconds or 159316.849 dump/sec.
-
-Summary:
-   System  time (secs)  rate (ops/sec)
----------  -----------  --------------
-       Oj       0.045      220123.710
-Oj:compat       0.063      159316.849
-
-Comparison Matrix
-(performance factor, 2.0 means row is twice as fast as column)
-                  Oj  Oj:compat
----------  ---------  ---------
-       Oj       1.00       1.38
-Oj:compat       0.72       1.00

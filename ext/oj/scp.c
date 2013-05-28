@@ -107,6 +107,7 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     pi.start_array = respond_to(handler, oj_array_start_id) ? start_array : 0;
     pi.end_array = respond_to(handler, oj_array_end_id) ? end_array : 0;
     pi.add_value = respond_to(handler, oj_add_value_id) ? add_value : 0;
+    pi.add_cstr = 0;
 
     if (rb_type(input) == T_STRING) {
 	pi.json = StringValuePtr(input);

@@ -109,6 +109,7 @@ oj_strict_parse(int argc, VALUE *argv, VALUE self) {
     pi.start_array = start_array;
     pi.end_array = 0;
     pi.add_value = add_value;
+    pi.add_cstr = 0;
 
     if (rb_type(input) == T_STRING) {
 	pi.json = StringValuePtr(input);
@@ -141,6 +142,10 @@ oj_strict_parse(int argc, VALUE *argv, VALUE self) {
 		rb_raise(rb_eIOError, "failed to read from IO Object.");
 	    }
 	    ((char*)pi.json)[len] = '\0';
+	    /* skip UTF-8 BOM if present */
+	    if (0xEF == (uint8_t)*pi.json && 0xBB == (uint8_t)pi.json[1] && 0xBF == (uint8_t)pi.json[2]) {
+		pi.json += 3;
+	    }
 #endif
 #endif
 	} else if (rb_respond_to(input, oj_read_id)) {

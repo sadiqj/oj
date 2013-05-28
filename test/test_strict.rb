@@ -62,7 +62,7 @@ class StrictJuice < ::Test::Unit::TestCase
     dump_and_load('', false)
     dump_and_load('abc', false)
     dump_and_load("abc\ndef", false)
-    dump_and_load("a\u0041", true)
+    dump_and_load("a\u0041", false)
   end
 
   def test_encode
@@ -98,7 +98,7 @@ class StrictJuice < ::Test::Unit::TestCase
 
   # Hash
   def test_hash
-    dump_and_load({}, true)
+    dump_and_load({}, false)
     dump_and_load({ 'true' => true, 'false' => false}, false)
     dump_and_load({ 'true' => true, 'array' => [], 'hash' => { }}, false)
   end

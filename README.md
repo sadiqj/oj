@@ -41,9 +41,7 @@ A fast JSON parser and Object marshaller as a Ruby gem.
 ### Release 2.0.15
 
  - This version is a major rewrite of the parser. The parser now uses a constant
-   stack size no matter how deeply nested the JSON document is. It is also
-   considerably faster than the previous parser as indicated on the
-   [Oj performance comparison page](http://www.ohler.com/oj/misc/performance_comparison.html).
+   stack size no matter how deeply nested the JSON document is.
 
  - Oj.strict_load() was renamed to Oj.safe_load() to better represent its
    functionality. A new Oj.strict_load() is simply Oj.load() with :mode set to

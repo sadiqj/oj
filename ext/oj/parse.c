@@ -47,7 +47,7 @@
 #define NUM_MAX (FIXNUM_MAX >> 8)
 #endif
 
-inline static int
+static int
 check_expected(ParseInfo pi, ValType type) {
     ValNext	expected;
 
@@ -58,7 +58,7 @@ check_expected(ParseInfo pi, ValType type) {
     return 0;
 }
 
-inline static void
+static void
 next_non_white(ParseInfo pi) {
     for (; 1; pi->cur++) {
 	switch(*pi->cur) {
@@ -70,23 +70,6 @@ next_non_white(ParseInfo pi) {
 	    break;
 	default:
 	    return;
-	}
-    }
-}
-
-inline static void
-next_white(ParseInfo pi) {
-    for (; 1; pi->cur++) {
-	switch(*pi->cur) {
-	case ' ':
-	case '\t':
-	case '\f':
-	case '\n':
-	case '\r':
-	case '\0':
-	    return;
-	default:
-	    break;
 	}
     }
 }
@@ -318,9 +301,11 @@ read_str(ParseInfo pi) {
     for (; 1; pi->cur++) {
 	switch (*pi->cur) {
 	case '"':
-	    if (0 != pi->add_value) {
+	    if (0 != pi->add_cstr) {
+		pi->add_cstr(pi, str, pi->cur - str);
+	    } else if (0 != pi->add_value) {
+		Val	val = stack_peek(&pi->stack);
 		VALUE	rstr = rb_str_new(str, pi->cur - str);
-		Val		val = stack_peek(&pi->stack);
 
 #if HAS_ENCODING_SUPPORT
 		rb_enc_associate(rstr, oj_utf8_encoding);
@@ -490,14 +475,10 @@ array_end(ParseInfo pi) {
 
     if (NEXT_ARRAY_COMMA != val->next && NEXT_ARRAY_NEW != val->next) {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not an array close", oj_stack_next_string(val->next));
-    } else {
-	if (0 == val || TYPE_ARRAY != val->type) {
-	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected array close");
-	    return;
-	}
-	if (0 != pi->end_array) {
-	    pi->end_array(pi);
-	}
+    } else if (0 == val || TYPE_ARRAY != val->type) {
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected array close");
+    } else if (0 != pi->end_array) {
+	pi->end_array(pi);
     }
 }
 
@@ -520,14 +501,10 @@ hash_end(ParseInfo pi) {
 
     if (NEXT_HASH_COMMA != val->next && NEXT_HASH_NEW != val->next) {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not a hash close", oj_stack_next_string(val->next));
-    } else {
-	if (0 == val || TYPE_HASH != val->type) {
-	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected hash close");
-	    return;
-	}
-	if (0 != pi->end_hash) {
-	    pi->end_hash(pi);
-	}
+    } else if (0 == val || TYPE_HASH != val->type) {
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected hash close");
+    } else if (0 != pi->end_hash) {
+	pi->end_hash(pi);
     }
 }
 

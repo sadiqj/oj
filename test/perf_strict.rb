@@ -36,7 +36,7 @@ if $with_nums
     'b' => true,    # boolean
     'c' => 12345,   # number
     'd' => [ true, [false, [-123456789, nil], 3.967, ['something', false], nil]], # mix it up array
-    'e' => { 'one' => 1, 'two' => 2 }, # hash
+    'e' => { 'zero' => 0, 'one' => 1, 'two' => 2 }, # hash
     'f' => nil,     # nil
     #'g' => 12345678901234567890123456789, # big number
     'h' => { 'a' => { 'b' => { 'c' => { 'd' => {'e' => { 'f' => { 'g' => nil }}}}}}}, # deep hash, not that deep
@@ -49,7 +49,7 @@ else
     'b' => true,
     'c' => '12345',
     'd' => [ true, [false, ['12345', nil], '3.967', ['something', false], nil]],
-    'e' => { 'one' => '1', 'two' => '2' },
+    'e' => { 'zero' => '0', 'one' => '1', 'two' => '2' },
     'f' => nil,
     'h' => { 'a' => { 'b' => { 'c' => { 'd' => {'e' => { 'f' => { 'g' => nil }}}}}}}, # deep hash, not that deep
     'i' => [[[[[[[nil]]]]]]]  # deep array, again, not that deep

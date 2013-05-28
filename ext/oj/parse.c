@@ -208,8 +208,6 @@ read_escaped_str(ParseInfo pi, const char *start) {
     struct _Buf	buf;
     const char	*s;
     int		cnt = pi->cur - start;
-    VALUE	rstr;
-    Val		val = stack_peek(&pi->stack);
     uint32_t	code;
 
     buf_init(&buf);
@@ -275,18 +273,23 @@ read_escaped_str(ParseInfo pi, const char *start) {
 	    buf_append(&buf, *s);
 	}
     }
-    rstr = rb_str_new(buf.head, buf_len(&buf));
+    if (0 != pi->add_cstr) {
+	pi->add_cstr(pi, buf.head, buf_len(&buf));
+    } else if (0 != pi->add_value) {
+	Val	val = stack_peek(&pi->stack);
+	VALUE	rstr = rb_str_new(buf.head, buf_len(&buf));
 
 #if HAS_ENCODING_SUPPORT
-    rb_enc_associate(rstr, oj_utf8_encoding);
+	rb_enc_associate(rstr, oj_utf8_encoding);
 #endif
-    if (0 != val && NEXT_HASH_COLON == val->next) {
-	if (Yes == pi->options.sym_key) {
-	    rstr = rb_str_intern(rstr);
+	if (0 != val && NEXT_HASH_COLON == val->next) {
+	    if (Yes == pi->options.sym_key) {
+		rstr = rb_str_intern(rstr);
+	    }
+	    val->val = rstr;
 	}
-	val->val = rstr;
+	pi->add_value(pi, rstr);
     }
-    pi->add_value(pi, rstr);
     pi->cur = s + 1;
     buf_cleanup(&buf);
 }
@@ -298,39 +301,33 @@ read_str(ParseInfo pi) {
     if (check_expected(pi, TYPE_STR)) {
 	return;
     }
-    for (; 1; pi->cur++) {
-	switch (*pi->cur) {
-	case '"':
-	    if (0 != pi->add_cstr) {
-		pi->add_cstr(pi, str, pi->cur - str);
-	    } else if (0 != pi->add_value) {
-		Val	val = stack_peek(&pi->stack);
-		VALUE	rstr = rb_str_new(str, pi->cur - str);
-
-#if HAS_ENCODING_SUPPORT
-		rb_enc_associate(rstr, oj_utf8_encoding);
-#endif
-		if (0 != val && NEXT_HASH_COLON == val->next) {
-		    if (Yes == pi->options.sym_key) {
-			rstr = rb_str_intern(rstr);
-		    }
-		    val->val = rstr;
-		}
-		pi->add_value(pi, rstr);
-	    }
-	    pi->cur++; // move past "
-	    return;
-	case '\0':
+    for (; '"' != *pi->cur; pi->cur++) {
+	if ('\0' == *pi->cur) {
 	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "quoted string not terminated");
 	    return;
-	case '\\':
+	} else if ('\\' == *pi->cur) {
 	    read_escaped_str(pi, str);
 	    return;
-	default:
-	    // keep going
-	    break;
 	}
     }
+    if (0 != pi->add_cstr) {
+	pi->add_cstr(pi, str, pi->cur - str);
+    } else if (0 != pi->add_value) {
+	Val	val = stack_peek(&pi->stack);
+	VALUE	rstr = rb_str_new(str, pi->cur - str);
+
+#if HAS_ENCODING_SUPPORT
+	rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+	if (0 != val && NEXT_HASH_COLON == val->next) {
+	    if (Yes == pi->options.sym_key) {
+		rstr = rb_str_intern(rstr);
+	    }
+	    val->val = rstr;
+	}
+	pi->add_value(pi, rstr);
+    }
+    pi->cur++; // move past "
 }
 
 static void

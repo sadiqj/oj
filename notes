@@ -3,8 +3,14 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- future
- - write fast hash for strings to avoid creation of strings
+- change val_stack STACK_INC and fix broken test
+- try changing val_stack add_value to just check, move hash push to somewhere else?
+ - add string and length to _Val to use as key
+  - makes stack thicker but simplifies key management
+  - maybe make separate callback for hash_set
+  - should add value take a string?
+   - if so what about array and hash members?
+   - nice to not have ruby in the parser except in stack for callbacks to use
 
 
 - allow maps to be used for classnames when encoding and decoding objects

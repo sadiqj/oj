@@ -96,11 +96,44 @@ class StrictJuice < ::Test::Unit::TestCase
     dump_and_load([[nil], 58], false)
   end
 
+  def test_array_deep
+    dump_and_load([1,[2,[3,[4,[5,[6,[7,[8,[9,[10,[11,[12,[13,[14,[15,[16,[17,[18,[19,[20]]]]]]]]]]]]]]]]]]]], false)
+  end
+
   # Hash
   def test_hash
     dump_and_load({}, false)
     dump_and_load({ 'true' => true, 'false' => false}, false)
     dump_and_load({ 'true' => true, 'array' => [], 'hash' => { }}, false)
+  end
+
+  def test_hash_deep
+    dump_and_load({'1' => {
+                      '2' => {
+                        '3' => {
+                          '4' => {
+                            '5' => {
+                              '6' => {
+                                '7' => {
+                                  '8' => {
+                                    '9' => {
+                                      '10' => {
+                                        '11' => {
+                                          '12' => {
+                                            '13' => {
+                                              '14' => {
+                                                '15' => {
+                                                  '16' => {
+                                                    '17' => {
+                                                      '18' => {
+                                                        '19' => {
+                                                          '20' => {}}}}}}}}}}}}}}}}}}}}}, false)
+  end
+
+  def test_hash_escaped_key
+    json = %{{"a\nb":true,"c\td":false}}
+    obj = Oj.strict_load(json)
+    assert_equal({"a\nb" => true, "c\td" => false}, obj)
   end
 
   def test_bignum_object

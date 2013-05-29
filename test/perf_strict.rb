@@ -6,25 +6,21 @@ $: << File.join(File.dirname(__FILE__), "../lib")
 $: << File.join(File.dirname(__FILE__), "../ext")
 
 require 'optparse'
-#require 'yajl'
 require 'perf'
-#require 'json'
-#require 'json/pure'
-#require 'json/ext'
-#require 'msgpack'
 require 'oj'
-#require 'ox'
 
 $verbose = false
 $indent = 0
 $iter = 20000
 $with_bignum = true
 $with_nums = true
+$size = 0
 
 opts = OptionParser.new
 opts.on("-v", "verbose")                                    { $verbose = true }
 opts.on("-c", "--count [Int]", Integer, "iterations")       { |i| $iter = i }
 opts.on("-i", "--indent [Int]", Integer, "indentation")     { |i| $indent = i }
+opts.on("-s", "--size [Int]", Integer, "size (~Kbytes)")    { |i| $size = i }
 opts.on("-b", "without bignum")                             { $with_bignum = false }
 opts.on("-n", "without numbers")                            { $with_nums = false }
 opts.on("-h", "--help", "Show this display")                { puts opts; Process.exit!(0) }
@@ -35,7 +31,7 @@ if $with_nums
     'a' => 'Alpha', # string
     'b' => true,    # boolean
     'c' => 12345,   # number
-    'd' => [ true, [false, [-123456789, nil], 3.967, ['something', false], nil]], # mix it up array
+    'd' => [ true, [false, [-123456789, nil], 3.9676, ['Something else.', false], nil]], # mix it up array
     'e' => { 'zero' => 0, 'one' => 1, 'two' => 2 }, # hash
     'f' => nil,     # nil
     #'g' => 12345678901234567890123456789, # big number
@@ -56,7 +52,15 @@ else
   }
 end
 
-Oj.default_options = { :indent => $indent, :mode => :compat }
+Oj.default_options = { :indent => $indent, :mode => :strict }
+
+if 0 < $size
+  o = $obj
+  $obj = []
+  (4 * $size).times do
+    $obj << o
+  end
+end
 
 $json = Oj.dump($obj)
 $obj_json = Oj.dump($obj, :mode => :object)
@@ -72,15 +76,7 @@ def capture_error(tag, orig, load_key, dump_key, &blk)
 end
 
 # Verify that all packages dump and load correctly and return the same Object as the original.
-capture_error('Oj:compat', $obj, 'load', 'dump') { |o| Oj.load(Oj.dump(o)) }
-capture_error('Oj', $obj, 'load', 'dump') { |o| Oj.load(Oj.dump(o, :mode => :compat), :mode => :compat) }
-capture_error('Ox', $obj, 'load', 'dump') { |o|
-  require 'ox'
-  Ox.default_options = { :indent => $indent, :mode => :object }
-  $xml = Ox.dump($obj, :indent => $indent)
-  Ox.load(Ox.dump(o, :mode => :object), :mode => :object)
-}
-capture_error('MessagePack', $obj, 'unpack', 'pack') { |o| require 'msgpack'; MessagePack.unpack(MessagePack.pack($obj)) }
+capture_error('Oj', $obj, 'load', 'dump') { |o| Oj.load(Oj.dump(o, :mode => :strict), :mode => :strict) }
 capture_error('Yajl', $obj, 'encode', 'parse') { |o| require 'yajl'; Yajl::Parser.parse(Yajl::Encoder.encode(o)) }
 capture_error('JSON::Ext', $obj, 'generate', 'parse') { |o|
   require 'json'
@@ -95,12 +91,6 @@ capture_error('JSON::Pure', $obj, 'generate', 'parse') { |o|
   JSON.parser = JSON::Pure::Parser
   JSON.parse(JSON.generate(o))
 }
-
-begin
-  $msgpack = MessagePack.pack($obj)
-rescue Exception => e
-  $msgpack = nil
-end
 
 if $verbose
   puts "json:\n#{$json}\n"
@@ -121,20 +111,14 @@ unless $failed.has_key?('JSON::Pure')
   perf.add('JSON::Pure', 'parse') { JSON.parse($json) }
   perf.before('JSON::Pure') { JSON.parser = JSON::Pure::Parser }
 end
-unless $failed.has_key?('Oj:compat')
-  perf.add('Oj:compat', 'load') { Oj.load($json) }
-  perf.before('Oj:compat') { Oj.default_options = { :mode => :compat} }
-end
 unless $failed.has_key?('Oj')
   perf.add('Oj', 'load') { Oj.load($obj_json) }
-  perf.before('Oj') { Oj.default_options = { :mode => :object} }
+  perf.before('Oj') { Oj.default_options = { :mode => :strict} }
 end
 unless $failed.has_key?('Oj:strict')
   perf.add('Oj:strict', 'strict_load') { Oj.strict_load($json) }
 end
 perf.add('Yajl', 'parse') { Yajl::Parser.parse($json) } unless $failed.has_key?('Yajl')
-perf.add('Ox', 'load') { Ox.load($xml) } unless $failed.has_key?('Ox')
-perf.add('MessagePack', 'unpack') { MessagePack.unpack($msgpack) } unless $failed.has_key?('MessagePack')
 perf.run($iter)
 
 puts

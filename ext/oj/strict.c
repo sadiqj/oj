@@ -39,51 +39,85 @@
 
 static void
 add_value(ParseInfo pi, VALUE val) {
-    Val	parent = stack_peek(&pi->stack);
+    pi->stack.head->val = val;
+}
 
-    if (0 == parent) {
-	pi->stack.head->val = val;
-    } else if (TYPE_ARRAY == parent->type) {
-	rb_ary_push(parent->val, val);
-    } else if (TYPE_HASH == parent->type) {
-	switch (parent->next) {
-	case NEXT_HASH_COLON:
-	    // nothing to do yet
-	    break;
-	case NEXT_HASH_COMMA:
-	    {
-		Val	keyVal = stack_prev(&pi->stack);
+static void
+add_cstr(ParseInfo pi, const char *str, size_t len) {
+    VALUE	rstr = rb_str_new(str, len);
 
-		if (0 != keyVal) {
-		    rb_hash_aset(parent->val, keyVal->val, val);
-		} else {
-		    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected hash key");
-		}
-	    }
-	    break;
-	default:
-	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected comma or colon in hash parse");
-	    break;
-	}
-    }
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+    pi->stack.head->val = rstr;
+}
+
+static void
+add_fix(ParseInfo pi, int64_t num) {
+    pi->stack.head->val = LONG2NUM(num);
 }
 
 static VALUE
 start_hash(ParseInfo pi) {
-    VALUE	hash = rb_hash_new();
+    return rb_hash_new();
+}
 
-    add_value(pi, hash);
+static VALUE
+hash_key(ParseInfo pi, const char *key, size_t klen) {
+    VALUE	rkey = rb_str_new(key, klen);
 
-    return hash;
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rkey, oj_utf8_encoding);
+#endif
+    if (Yes == pi->options.sym_key) {
+	rkey = rb_str_intern(rkey);
+    }
+    return rkey;
+}
+
+static void
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+    VALUE	rstr = rb_str_new(str, len);
+
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+    rb_hash_aset(stack_peek(&pi->stack)->val, hash_key(pi, key, klen), rstr);
+}
+
+static void
+hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
+    rb_hash_aset(stack_peek(&pi->stack)->val, hash_key(pi, key, klen), LONG2NUM(num));
+}
+
+static void
+hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
+    rb_hash_aset(stack_peek(&pi->stack)->val, hash_key(pi, key, klen), value);
 }
 
 static VALUE
 start_array(ParseInfo pi) {
-    VALUE	array = rb_ary_new();
+    return rb_ary_new();
+}
 
-    add_value(pi, array);
+static void
+array_append_cstr(ParseInfo pi, const char *str, size_t len) {
+    VALUE	rstr = rb_str_new(str, len);
 
-    return array;
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+    rb_ary_push(stack_peek(&pi->stack)->val, rstr);
+}
+
+static void
+array_append_fix(ParseInfo pi, int64_t num) {
+    rb_ary_push(stack_peek(&pi->stack)->val, LONG2NUM(num));
+}
+
+static void
+array_append_value(ParseInfo pi, VALUE value) {
+    rb_ary_push(stack_peek(&pi->stack)->val, value);
 }
 
 VALUE
@@ -100,16 +134,22 @@ oj_strict_parse(int argc, VALUE *argv, VALUE self) {
     pi.options = oj_default_options;
     if (2 == argc) {
 	oj_parse_options(argv[1], &pi.options);
-	
     }
     pi.cbc = (void*)0;
 
     pi.start_hash = start_hash;
     pi.end_hash = 0;
+    pi.hash_set_cstr = hash_set_cstr;
+    pi.hash_set_fix = hash_set_fix;
+    pi.hash_set_value = hash_set_value;
     pi.start_array = start_array;
     pi.end_array = 0;
+    pi.array_append_cstr = array_append_cstr;
+    pi.array_append_fix = array_append_fix;
+    pi.array_append_value = array_append_value;
+    pi.add_cstr = add_cstr;
+    pi.add_fix = add_fix;
     pi.add_value = add_value;
-    pi.add_cstr = 0;
 
     if (rb_type(input) == T_STRING) {
 	pi.json = StringValuePtr(input);

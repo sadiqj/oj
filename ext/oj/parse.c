@@ -47,17 +47,6 @@
 #define NUM_MAX (FIXNUM_MAX >> 8)
 #endif
 
-static int
-check_expected(ParseInfo pi, ValType type) {
-    ValNext	expected;
-
-    if (NEXT_NONE != (expected = stack_add_value(&pi->stack, type))) {
-	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not a %s", oj_stack_next_string(expected), oj_stack_type_string(type));
-	return 1;
-    }
-    return 0;
-}
-
 static void
 next_non_white(ParseInfo pi) {
     for (; 1; pi->cur++) {
@@ -105,14 +94,49 @@ skip_comment(ParseInfo pi) {
 }
 
 static void
-read_null(ParseInfo pi) {
-    if (check_expected(pi, TYPE_NULL)) {
-	return;
-    }
-    if ('u' == *pi->cur++ && 'l' == *pi->cur++ && 'l' == *pi->cur++) {
+add_value(ParseInfo pi, VALUE rval) {
+    Val	parent = stack_peek(&pi->stack);
+
+    if (0 == parent) { // simple add
 	if (0 != pi->add_value) {
-	    pi->add_value(pi, Qnil);
+	    pi->add_value(pi, rval);
 	}
+    } else {
+	switch (parent->next) {
+	case NEXT_ARRAY_NEW:
+	case NEXT_ARRAY_ELEMENT:
+	    if (0 != pi->array_append_value) {
+		pi->array_append_value(pi, rval);
+	    }
+	    parent->next = NEXT_ARRAY_COMMA;
+	    break;
+	case NEXT_HASH_VALUE:
+	    if (0 != pi->hash_set_value) {
+		pi->hash_set_value(pi, parent->key, parent->klen, rval);
+	    }
+	    if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
+		xfree((char*)parent->key);
+		parent->key = 0;
+	    }
+	    parent->next = NEXT_HASH_COMMA;
+	    break;
+	case NEXT_HASH_NEW:
+	case NEXT_HASH_KEY:
+	case NEXT_HASH_COMMA:
+	case NEXT_NONE:
+	case NEXT_ARRAY_COMMA:
+	case NEXT_HASH_COLON:
+	default:
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s", oj_stack_next_string(parent->next));
+	    break;
+	}
+    }
+}
+
+static void
+read_null(ParseInfo pi) {
+    if ('u' == *pi->cur++ && 'l' == *pi->cur++ && 'l' == *pi->cur++) {
+	add_value(pi, Qnil);
     } else {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected null");
     }
@@ -120,13 +144,8 @@ read_null(ParseInfo pi) {
 
 static void
 read_true(ParseInfo pi) {
-    if (check_expected(pi, TYPE_BOOL)) {
-	return;
-    }
     if ('r' == *pi->cur++ && 'u' == *pi->cur++ && 'e' == *pi->cur++) {
-	if (0 != pi->add_value) {
-	    pi->add_value(pi, Qtrue);
-	}
+	add_value(pi, Qtrue);
     } else {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected true");
     }
@@ -134,13 +153,8 @@ read_true(ParseInfo pi) {
 
 static void
 read_false(ParseInfo pi) {
-    if (check_expected(pi, TYPE_BOOL)) {
-	return;
-    }
     if ('a' == *pi->cur++ && 'l' == *pi->cur++ && 's' == *pi->cur++ && 'e' == *pi->cur++) {
-	if (0 != pi->add_value) {
-	    pi->add_value(pi, Qfalse);
-	}
+	add_value(pi, Qfalse);
     } else {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected false");
     }
@@ -151,7 +165,6 @@ read_hex(ParseInfo pi, const char *h) {
     uint32_t	b = 0;
     int		i;
 
-    // TBD this can be made faster with a table
     for (i = 0; i < 4; i++, h++) {
 	b = b << 4;
 	if ('0' <= *h && *h <= '9') {
@@ -209,6 +222,7 @@ read_escaped_str(ParseInfo pi, const char *start) {
     const char	*s;
     int		cnt = pi->cur - start;
     uint32_t	code;
+    Val		parent = stack_peek(&pi->stack);
 
     buf_init(&buf);
     if (0 < cnt) {
@@ -273,22 +287,44 @@ read_escaped_str(ParseInfo pi, const char *start) {
 	    buf_append(&buf, *s);
 	}
     }
-    if (0 != pi->add_cstr) {
-	pi->add_cstr(pi, buf.head, buf_len(&buf));
-    } else if (0 != pi->add_value) {
-	Val	val = stack_peek(&pi->stack);
-	VALUE	rstr = rb_str_new(buf.head, buf_len(&buf));
-
-#if HAS_ENCODING_SUPPORT
-	rb_enc_associate(rstr, oj_utf8_encoding);
-#endif
-	if (0 != val && NEXT_HASH_COLON == val->next) {
-	    if (Yes == pi->options.sym_key) {
-		rstr = rb_str_intern(rstr);
-	    }
-	    val->val = rstr;
+    if (0 == parent) {
+	if (0 != pi->add_cstr) {
+	    pi->add_cstr(pi, buf.head, buf_len(&buf));
 	}
-	pi->add_value(pi, rstr);
+    } else {
+	switch (parent->next) {
+	case NEXT_ARRAY_NEW:
+	case NEXT_ARRAY_ELEMENT:
+	    if (0 != pi->array_append_cstr) {
+		pi->array_append_cstr(pi, buf.head, buf_len(&buf));
+	    }
+	    parent->next = NEXT_ARRAY_COMMA;
+	    break;
+	case NEXT_HASH_NEW:
+	case NEXT_HASH_KEY:
+	    // key will not be between pi->json and pi->cur.
+	    parent->key = strdup(buf.head); // TBD free this later
+	    parent->klen = buf_len(&buf);
+	    parent->next = NEXT_HASH_COLON;
+	    break;
+	case NEXT_HASH_VALUE:
+	    if (0 != pi->hash_set_cstr) {
+		pi->hash_set_cstr(pi, parent->key, parent->klen, buf.head, buf_len(&buf));
+	    }
+	    if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
+		xfree((char*)parent->key);
+		parent->key = 0;
+	    }
+	    parent->next = NEXT_HASH_COMMA;
+	    break;
+	case NEXT_HASH_COMMA:
+	case NEXT_NONE:
+	case NEXT_ARRAY_COMMA:
+	case NEXT_HASH_COLON:
+	default:
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not a string", oj_stack_next_string(parent->next));
+	    break;
+	}
     }
     pi->cur = s + 1;
     buf_cleanup(&buf);
@@ -297,10 +333,8 @@ read_escaped_str(ParseInfo pi, const char *start) {
 static void
 read_str(ParseInfo pi) {
     const char	*str = pi->cur;
+    Val		parent = stack_peek(&pi->stack);
 
-    if (check_expected(pi, TYPE_STR)) {
-	return;
-    }
     for (; '"' != *pi->cur; pi->cur++) {
 	if ('\0' == *pi->cur) {
 	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "quoted string not terminated");
@@ -310,22 +344,43 @@ read_str(ParseInfo pi) {
 	    return;
 	}
     }
-    if (0 != pi->add_cstr) {
-	pi->add_cstr(pi, str, pi->cur - str);
-    } else if (0 != pi->add_value) {
-	Val	val = stack_peek(&pi->stack);
-	VALUE	rstr = rb_str_new(str, pi->cur - str);
-
-#if HAS_ENCODING_SUPPORT
-	rb_enc_associate(rstr, oj_utf8_encoding);
-#endif
-	if (0 != val && NEXT_HASH_COLON == val->next) {
-	    if (Yes == pi->options.sym_key) {
-		rstr = rb_str_intern(rstr);
-	    }
-	    val->val = rstr;
+    if (0 == parent) { // simple add
+	if (0 != pi->add_cstr) {
+	    pi->add_cstr(pi, str, pi->cur - str);
 	}
-	pi->add_value(pi, rstr);
+    } else {
+	switch (parent->next) {
+	case NEXT_ARRAY_NEW:
+	case NEXT_ARRAY_ELEMENT:
+	    if (0 != pi->array_append_cstr) {
+		pi->array_append_cstr(pi, str, pi->cur - str);
+	    }
+	    parent->next = NEXT_ARRAY_COMMA;
+	    break;
+	case NEXT_HASH_NEW:
+	case NEXT_HASH_KEY:
+	    parent->key = str;
+	    parent->klen = pi->cur - str;
+	    parent->next = NEXT_HASH_COLON;
+	    break;
+	case NEXT_HASH_VALUE:
+	    if (0 != pi->hash_set_cstr) {
+		pi->hash_set_cstr(pi, parent->key, parent->klen, str, pi->cur - str);
+	    }
+	    if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
+		xfree((char*)parent->key);
+		parent->key = 0;
+	    }
+	    parent->next = NEXT_HASH_COMMA;
+	    break;
+	case NEXT_HASH_COMMA:
+	case NEXT_NONE:
+	case NEXT_ARRAY_COMMA:
+	case NEXT_HASH_COLON:
+	default:
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not a string", oj_stack_next_string(parent->next));
+	    break;
+	}
     }
     pi->cur++; // move past "
 }
@@ -340,10 +395,9 @@ read_num(ParseInfo pi) {
     int		neg = 0;
     int		eneg = 0;
     int		big = 0;
+    VALUE	rnum = Qnil;
+    Val		parent = stack_peek(&pi->stack);
 
-    if (check_expected(pi, TYPE_NUM)) {
-	return;
-    }
     if ('-' == *pi->cur) {
 	pi->cur++;
 	neg = 1;
@@ -356,10 +410,9 @@ read_num(ParseInfo pi) {
 	    return;
 	}
 	pi->cur += 8;
-	if (0 != pi->add_value) {
-	    VALUE	rnum = (neg) ? rb_float_new(-OJ_INFINITY) : rb_float_new(OJ_INFINITY);
-
-	    pi->add_value(pi, rnum);
+	if (0 != pi->add_fix) {
+	    rnum = (neg) ? rb_float_new(-OJ_INFINITY) : rb_float_new(OJ_INFINITY);
+	    add_value(pi, rnum);
 	}
 	return;
     }
@@ -398,9 +451,7 @@ read_num(ParseInfo pi) {
 	    }
 	}
     }
-    if (0 != pi->add_value) {
-	VALUE	rnum;
-
+    if (0 != pi->add_fix) { // short cut
 	if (Yes == pi->options.bigdec_load) {
 	    big = 1;
 	}
@@ -426,7 +477,35 @@ read_num(ParseInfo pi) {
 		if (neg) {
 		    n = -n;
 		}
-		rnum = LONG2NUM(n);
+		if (0 == parent) {
+		    if (0 != pi->add_fix) {
+			pi->add_fix(pi, n);
+		    }
+		} else {
+		    switch (parent->next) {
+		    case NEXT_ARRAY_NEW:
+		    case NEXT_ARRAY_ELEMENT:
+			if (0 != pi->array_append_fix) {
+			    pi->array_append_fix(pi, n);
+			}
+			parent->next = NEXT_ARRAY_COMMA;
+			break;
+		    case NEXT_HASH_VALUE:
+			if (0 != pi->hash_set_fix) {
+			    pi->hash_set_fix(pi, parent->key, parent->klen, n);
+			}
+			if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
+			    xfree((char*)parent->key);
+			    parent->key = 0;
+			}
+			parent->next = NEXT_HASH_COMMA;
+			break;
+		    default:
+			oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s", oj_stack_next_string(parent->next));
+			break;
+		    }
+		}
+		return;
 	    }
 	} else { /* decimal */
 	    if (big) {
@@ -449,7 +528,26 @@ read_num(ParseInfo pi) {
 		rnum = rb_float_new(d);
 	    }
 	}
-	pi->add_value(pi, rnum);
+	add_value(pi, rnum);
+    } else {
+	if (0 != parent) {
+	    switch (parent->next) {
+	    case NEXT_ARRAY_NEW:
+	    case NEXT_ARRAY_ELEMENT:
+		parent->next = NEXT_ARRAY_COMMA;
+		break;
+	    case NEXT_HASH_VALUE:
+		if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
+		    xfree((char*)parent->key);
+		    parent->key = 0;
+		}
+		parent->next = NEXT_HASH_COMMA;
+		break;
+	    default:
+		oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s", oj_stack_next_string(parent->next));
+		break;
+	    }
+	}
     }
 }
 
@@ -457,25 +555,25 @@ static void
 array_start(ParseInfo pi) {
     VALUE	v = Qnil;
 
-    if (check_expected(pi, TYPE_ARRAY)) {
-	return;
-    }
     if (0 != pi->start_array) {
 	v = pi->start_array(pi);
     }
-    stack_push(&pi->stack, v, TYPE_ARRAY);
+    stack_push(&pi->stack, v, NEXT_ARRAY_NEW);
 }
 
 static void
 array_end(ParseInfo pi) {
-    Val	val = stack_pop(&pi->stack);
+    Val	array = stack_pop(&pi->stack);
 
-    if (NEXT_ARRAY_COMMA != val->next && NEXT_ARRAY_NEW != val->next) {
-	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not an array close", oj_stack_next_string(val->next));
-    } else if (0 == val || TYPE_ARRAY != val->type) {
+    if (0 == array) {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected array close");
-    } else if (0 != pi->end_array) {
-	pi->end_array(pi);
+    } else if (NEXT_ARRAY_COMMA != array->next && NEXT_ARRAY_NEW != array->next) {
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not an array close", oj_stack_next_string(array->next));
+    } else {
+	if (0 != pi->end_array) {
+	    pi->end_array(pi);
+	}
+	add_value(pi, array->val);
     }
 }
 
@@ -483,38 +581,38 @@ static void
 hash_start(ParseInfo pi) {
     VALUE	v = Qnil;
 
-    if (check_expected(pi, TYPE_HASH)) {
-	return;
-    }
     if (0 != pi->start_hash) {
 	v = pi->start_hash(pi);
     }
-    stack_push(&pi->stack, v, TYPE_HASH);
+    stack_push(&pi->stack, v, NEXT_HASH_NEW);
 }
 
 static void
 hash_end(ParseInfo pi) {
-    Val	val = stack_pop(&pi->stack);
+    Val	hash = stack_pop(&pi->stack);
 
-    if (NEXT_HASH_COMMA != val->next && NEXT_HASH_NEW != val->next) {
-	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not a hash close", oj_stack_next_string(val->next));
-    } else if (0 == val || TYPE_HASH != val->type) {
+    if (0 == hash) {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected hash close");
-    } else if (0 != pi->end_hash) {
-	pi->end_hash(pi);
+    } else if (NEXT_HASH_COMMA != hash->next && NEXT_HASH_NEW != hash->next) {
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s, not a hash close", oj_stack_next_string(hash->next));
+    } else {
+	if (0 != pi->end_hash) {
+	    pi->end_hash(pi);
+	}
+	add_value(pi, hash->val);
     }
 }
 
 static void
 comma(ParseInfo pi) {
-    Val	val = stack_peek(&pi->stack);
+    Val	parent = stack_peek(&pi->stack);
 
-    if (0 == val) {
+    if (0 == parent) {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected comma");
-    } else if (NEXT_ARRAY_COMMA == val->next) {
-	val->next = NEXT_ARRAY_ELEMENT;
-    } else if (NEXT_HASH_COMMA == val->next) {
-	val->next = NEXT_HASH_KEY;
+    } else if (NEXT_ARRAY_COMMA == parent->next) {
+	parent->next = NEXT_ARRAY_ELEMENT;
+    } else if (NEXT_HASH_COMMA == parent->next) {
+	parent->next = NEXT_HASH_KEY;
     } else {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected comma");
     }
@@ -522,10 +620,10 @@ comma(ParseInfo pi) {
 
 static void
 colon(ParseInfo pi) {
-    Val	val = stack_peek(&pi->stack);
+    Val	parent = stack_peek(&pi->stack);
 
-    if (0 != val && NEXT_HASH_COLON == val->next) {
-	val->next = NEXT_HASH_VALUE;
+    if (0 != parent && NEXT_HASH_COLON == parent->next) {
+	parent->next = NEXT_HASH_VALUE;
     } else {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected colon");
     }

@@ -44,10 +44,19 @@ typedef struct _ParseInfo {
     struct _ValStack	stack;
     VALUE		(*start_hash)(struct _ParseInfo *pi);
     void		(*end_hash)(struct _ParseInfo *pi);
+    void		(*hash_set_cstr)(struct _ParseInfo *pi, const char *key, size_t klen, const char *str, size_t len);
+    void		(*hash_set_fix)(struct _ParseInfo *pi, const char *key, size_t klen, int64_t num);
+    void		(*hash_set_value)(struct _ParseInfo *pi, const char *key, size_t klen, VALUE value);
+
     VALUE		(*start_array)(struct _ParseInfo *pi);
     void		(*end_array)(struct _ParseInfo *pi);
-    void		(*add_value)(struct _ParseInfo *pi, VALUE val);
+    void		(*array_append_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
+    void		(*array_append_fix)(struct _ParseInfo *pi, int64_t num);
+    void		(*array_append_value)(struct _ParseInfo *pi, VALUE value);
+
     void		(*add_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
+    void		(*add_fix)(struct _ParseInfo *pi, int64_t num);
+    void		(*add_value)(struct _ParseInfo *pi, VALUE val);
 } *ParseInfo;
 
 extern void	oj_parse2(ParseInfo pi);

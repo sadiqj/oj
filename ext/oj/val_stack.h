@@ -36,6 +36,7 @@
 #define STACK_INC	16
 
 typedef enum {
+    TYPE_NONE	= 0,
     TYPE_HASH	= 'h',
     TYPE_ARRAY	= 'a',
     TYPE_STR	= 's',
@@ -59,8 +60,10 @@ typedef enum {
 
 typedef struct _Val {
     VALUE	val;
-    char	type; // ValType
+    const char	*key;
+    uint32_t	klen;
     char	next; // ValNext
+    char	type; // ValType
 } *Val;
 
 typedef struct _ValStack {
@@ -76,8 +79,10 @@ stack_init(ValStack stack) {
     stack->end = stack->base + sizeof(stack->base) / sizeof(struct _Val);
     stack->tail = stack->head;
     stack->head->val = Qundef;
-    stack->head->type = TYPE_ERR;
+    stack->head->key = 0;
+    stack->head->klen = 0;
     stack->head->next = NEXT_NONE;
+    stack->head->type = TYPE_NONE;
 }
 
 inline static int
@@ -93,7 +98,7 @@ stack_cleanup(ValStack stack) {
 }
 
 inline static void
-stack_push(ValStack stack, VALUE val, ValType type) {
+stack_push(ValStack stack, VALUE val, ValNext next) {
     if (stack->end <= stack->tail) {
 	size_t	len = stack->end - stack->head;
 	size_t	toff = stack->tail - stack->head;
@@ -108,18 +113,8 @@ stack_push(ValStack stack, VALUE val, ValType type) {
 	stack->end = stack->head + len + STACK_INC;
     }
     stack->tail->val = val;
-    stack->tail->type = type;
-    switch (type) {
-    case TYPE_ARRAY:
-	stack->tail->next = NEXT_ARRAY_NEW;
-	break;
-    case TYPE_HASH:
-	stack->tail->next = NEXT_HASH_NEW;
-	break;
-    default:
-	stack->tail->next = NEXT_NONE;
-	break;
-    }
+    stack->tail->next = next;
+    stack->tail->type = TYPE_NONE;
     stack->tail++;
 }
 
@@ -159,43 +154,6 @@ stack_pop(ValStack stack) {
 	return stack->tail;
     }
     return 0;
-}
-
-inline static ValNext
-stack_add_value(ValStack stack, ValType type) {
-    if (stack->head < stack->tail) {
-	Val	val = stack->tail - 1;
-
-	switch (val->next) {
-	case NEXT_ARRAY_NEW:
-	case NEXT_ARRAY_ELEMENT:
-	    val->next = NEXT_ARRAY_COMMA;
-	    break;
-	case NEXT_HASH_NEW:
-	case NEXT_HASH_KEY:
-	    if (TYPE_STR == type) {
-		stack_push(stack, Qundef, TYPE_STR);
-		val++;
-		val->next = NEXT_HASH_COLON;
-	    } else {
-		return NEXT_HASH_KEY;
-	    }
-	    break;
-	case NEXT_HASH_VALUE:
-	    stack->tail--; // effective a pop but leave val intact for use after return
-	    val--;
-	    val->next = NEXT_HASH_COMMA;
-	    break;
-	case NEXT_HASH_COMMA:
-	case NEXT_NONE:
-	case NEXT_ARRAY_COMMA:
-	case NEXT_HASH_COLON:
-	default:
-	    return val->next;
-	    break;
-	}
-    }
-    return NEXT_NONE;
 }
 
 extern const char*	oj_stack_next_string(ValNext n);

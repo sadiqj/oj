@@ -12,7 +12,7 @@ require 'oj'
 $verbose = false
 $indent = 0
 $iter = 20000
-$with_bignum = true
+$with_bignum = false
 $with_nums = true
 $size = 0
 
@@ -21,7 +21,7 @@ opts.on("-v", "verbose")                                    { $verbose = true }
 opts.on("-c", "--count [Int]", Integer, "iterations")       { |i| $iter = i }
 opts.on("-i", "--indent [Int]", Integer, "indentation")     { |i| $indent = i }
 opts.on("-s", "--size [Int]", Integer, "size (~Kbytes)")    { |i| $size = i }
-opts.on("-b", "without bignum")                             { $with_bignum = false }
+opts.on("-b", "with bignum")                                { $with_bignum = true }
 opts.on("-n", "without numbers")                            { $with_nums = false }
 opts.on("-h", "--help", "Show this display")                { puts opts; Process.exit!(0) }
 files = opts.parse(ARGV)
@@ -32,9 +32,8 @@ if $with_nums
     'b' => true,    # boolean
     'c' => 12345,   # number
     'd' => [ true, [false, [-123456789, nil], 3.9676, ['Something else.', false], nil]], # mix it up array
-    'e' => { 'zero' => 0, 'one' => 1, 'two' => 2 }, # hash
+    'e' => { 'zero' => nil, 'one' => 1, 'two' => 2, 'three' => [3], 'four' => [0, 1, 2, 3, 4] }, # hash
     'f' => nil,     # nil
-    #'g' => 12345678901234567890123456789, # big number
     'h' => { 'a' => { 'b' => { 'c' => { 'd' => {'e' => { 'f' => { 'g' => nil }}}}}}}, # deep hash, not that deep
     'i' => [[[[[[[nil]]]]]]]  # deep array, again, not that deep
   }
@@ -64,6 +63,7 @@ end
 
 $json = Oj.dump($obj)
 $obj_json = Oj.dump($obj, :mode => :object)
+#puts "*** size: #{$obj_json.size}"
 $failed = {} # key is same as String used in tests later
 
 def capture_error(tag, orig, load_key, dump_key, &blk)

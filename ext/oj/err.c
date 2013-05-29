@@ -60,5 +60,5 @@ _oj_err_set_with_location(Err err, VALUE eclas, const char *msg, const char *jso
 	    n++;
 	}
     }
-    oj_err_set(err, eclas, "%s at line %d, column %d [%s:%d]", msg, n, col - 1, file, line);
+    oj_err_set(err, eclas, "%s at line %d, column %d [%s:%d]", msg, n, col, file, line);
 }

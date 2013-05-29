@@ -49,12 +49,14 @@ void Init_oj();
 VALUE	 Oj = Qnil;
 
 ID	oj_add_value_id;
+ID	oj_array_append_id;
 ID	oj_array_end_id;
 ID	oj_array_start_id;
 ID	oj_as_json_id;
 ID	oj_error_id;
 ID	oj_fileno_id;
 ID	oj_hash_end_id;
+ID	oj_hash_set_id;
 ID	oj_hash_start_id;
 ID	oj_instance_variables_id;
 ID	oj_json_create_id;
@@ -1019,12 +1021,14 @@ void Init_oj() {
     rb_define_module_function(Oj, "sc_parse", oj_sc_parse, -1);
 
     oj_add_value_id = rb_intern("add_value");
+    oj_array_append_id = rb_intern("array_append");
     oj_array_end_id = rb_intern("array_end");
     oj_array_start_id = rb_intern("array_start");
     oj_as_json_id = rb_intern("as_json");
     oj_error_id = rb_intern("error");
     oj_fileno_id = rb_intern("fileno");
     oj_hash_end_id = rb_intern("hash_end");
+    oj_hash_set_id = rb_intern("hash_set");
     oj_hash_start_id = rb_intern("hash_start");
     oj_instance_variables_id = rb_intern("instance_variables");
     oj_json_create_id = rb_intern("json_create");

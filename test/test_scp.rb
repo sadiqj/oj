@@ -38,6 +38,7 @@ class AllHandler < Oj::ScHandler
 
   def hash_start()
     @calls << [:hash_start]
+    {}
   end
 
   def hash_end()
@@ -46,6 +47,7 @@ class AllHandler < Oj::ScHandler
 
   def array_start()
     @calls << [:array_start]
+    []
   end
 
   def array_end()
@@ -54,6 +56,14 @@ class AllHandler < Oj::ScHandler
 
   def add_value(value)
     @calls << [:add_value, value]
+  end
+
+  def hash_set(h, key, value)
+    @calls << [:hash_set, key, value]
+  end
+  
+  def array_append(a, value)
+    @calls << [:array_append, value]
   end
 
 end # AllHandler
@@ -116,7 +126,8 @@ class ScpTest < ::Test::Unit::TestCase
     json = %{[]}
     Oj.sc_parse(handler, json)
     assert_equal([[:array_start],
-                  [:array_end]], handler.calls)
+                  [:array_end],
+                  [:add_value, []]], handler.calls)
   end
 
   def test_array
@@ -124,9 +135,10 @@ class ScpTest < ::Test::Unit::TestCase
     json = %{[true,false]}
     Oj.sc_parse(handler, json)
     assert_equal([[:array_start],
-                  [:add_value, true],
-                  [:add_value, false],
-                  [:array_end]], handler.calls)
+                  [:array_append, true],
+                  [:array_append, false],
+                  [:array_end],
+                  [:add_value, []]], handler.calls)
   end
 
   def test_hash_empty
@@ -134,7 +146,8 @@ class ScpTest < ::Test::Unit::TestCase
     json = %{{}}
     Oj.sc_parse(handler, json)
     assert_equal([[:hash_start],
-                  [:hash_end]], handler.calls)
+                  [:hash_end],
+                  [:add_value, {}]], handler.calls)
   end
 
   def test_hash
@@ -142,11 +155,10 @@ class ScpTest < ::Test::Unit::TestCase
     json = %{{"one":true,"two":false}}
     Oj.sc_parse(handler, json)
     assert_equal([[:hash_start],
-                  [:add_value, "one"],
-                  [:add_value, true],
-                  [:add_value, "two"],
-                  [:add_value, false],
-                  [:hash_end]], handler.calls)
+                  [:hash_set, 'one', true],
+                  [:hash_set, 'two', false],
+                  [:hash_end],
+                  [:add_value, {}]], handler.calls)
   end
 
   def test_hash_sym
@@ -154,41 +166,39 @@ class ScpTest < ::Test::Unit::TestCase
     json = %{{"one":true,"two":false}}
     Oj.sc_parse(handler, json, :symbol_keys => true)
     assert_equal([[:hash_start],
-                  [:add_value, :one],
-                  [:add_value, true],
-                  [:add_value, :two],
-                  [:add_value, false],
-                  [:hash_end]], handler.calls)
+                  [:hash_set, :one, true],
+                  [:hash_set, :two, false],
+                  [:hash_end],
+                  [:add_value, {}]], handler.calls)
   end
 
   def test_full
     handler = AllHandler.new()
     Oj.sc_parse(handler, $json)
     assert_equal([[:hash_start],
-                  [:add_value, 'array'],
                   [:array_start],
                   [:hash_start],
-                  [:add_value, 'num'],
-                  [:add_value, 3],
-                  [:add_value, 'string'],
-                  [:add_value, 'message'],
-                  [:add_value, 'hash'],
+                  [:hash_set, "num", 3],
+                  [:hash_set, "string", "message"],
                   [:hash_start],
-                  [:add_value, 'h2'],
                   [:hash_start],
-                  [:add_value, 'a'],
                   [:array_start],
-                  [:add_value, 1],
-                  [:add_value, 2],
-                  [:add_value, 3],
+                  [:array_append, 1],
+                  [:array_append, 2],
+                  [:array_append, 3],
                   [:array_end],
+                  [:hash_set, "a", []],
                   [:hash_end],
+                  [:hash_set, "h2", {}],
                   [:hash_end],
+                  [:hash_set, "hash", {}],
                   [:hash_end],
+                  [:array_append, {}],
                   [:array_end],
-                  [:add_value, 'boolean'],
-                  [:add_value, true],
-                  [:hash_end]], handler.calls)
+                  [:hash_set, "array", []],
+                  [:hash_set, "boolean", true],
+                  [:hash_end],
+                  [:add_value, {}]], handler.calls)
   end
 
   def test_fixnum_bad
@@ -197,7 +207,7 @@ class ScpTest < ::Test::Unit::TestCase
     begin
       Oj.sc_parse(handler, json)
     rescue Exception => e
-      assert_equal("unexpected character at line 1, column 6 [parse.c:468]", e.message)
+      assert_equal("unexpected character at line 1, column 6 [parse.c:693]", e.message)
     end
   end
 

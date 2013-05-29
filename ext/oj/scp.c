@@ -55,11 +55,29 @@ respond_to(VALUE obj, ID method) {
 }
 
 
+static void
+add_value(ParseInfo pi, VALUE val) {
+     rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, val);
+}
+
+static void
+add_cstr(ParseInfo pi, const char *str, size_t len) {
+    VALUE	rstr = rb_str_new(str, len);
+
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+     rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, rstr);
+}
+
+static void
+add_fix(ParseInfo pi, int64_t num) {
+     rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, LONG2NUM(num));
+}
+
 static VALUE
 start_hash(ParseInfo pi) {
-    rb_funcall((VALUE)pi->cbc, oj_hash_start_id, 0);
-
-    return Qnil;
+    return rb_funcall((VALUE)pi->cbc, oj_hash_start_id, 0);
 }
 
 static void
@@ -69,9 +87,7 @@ end_hash(ParseInfo pi) {
 
 static VALUE
 start_array(ParseInfo pi) {
-    rb_funcall((VALUE)pi->cbc, oj_array_start_id, 0);
-
-    return Qnil;
+    return rb_funcall((VALUE)pi->cbc, oj_array_start_id, 0);
 }
 
 static void
@@ -79,10 +95,59 @@ end_array(ParseInfo pi) {
     rb_funcall((VALUE)pi->cbc, oj_array_end_id, 0);
 }
 
-static void
-add_value(ParseInfo pi, VALUE val) {
-     rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, val);
+static VALUE
+hash_key(ParseInfo pi, const char *key, size_t klen) {
+    VALUE	rkey = rb_str_new(key, klen);
+
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rkey, oj_utf8_encoding);
+#endif
+    if (Yes == pi->options.sym_key) {
+	rkey = rb_str_intern(rkey);
+    }
+    return rkey;
 }
+
+static void
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+    VALUE	rstr = rb_str_new(str, len);
+
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+    rb_funcall((VALUE)pi->cbc, oj_hash_set_id, 3, stack_peek(&pi->stack)->val, hash_key(pi, key, klen), rstr);
+}
+
+static void
+hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
+    rb_funcall((VALUE)pi->cbc, oj_hash_set_id, 3, stack_peek(&pi->stack)->val, hash_key(pi, key, klen), LONG2NUM(num));
+}
+
+static void
+hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
+    rb_funcall((VALUE)pi->cbc, oj_hash_set_id, 3, stack_peek(&pi->stack)->val, hash_key(pi, key, klen), value);
+}
+
+static void
+array_append_cstr(ParseInfo pi, const char *str, size_t len) {
+    VALUE	rstr = rb_str_new(str, len);
+
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+    rb_funcall((VALUE)pi->cbc, oj_array_append_id, 2, stack_peek(&pi->stack)->val, rstr);
+}
+
+static void
+array_append_fix(ParseInfo pi, int64_t num) {
+    rb_funcall((VALUE)pi->cbc, oj_array_append_id, 2, stack_peek(&pi->stack)->val, LONG2NUM(num));
+}
+
+static void
+array_append_value(ParseInfo pi, VALUE value) {
+    rb_funcall((VALUE)pi->cbc, oj_array_append_id, 2, stack_peek(&pi->stack)->val, value);
+}
+
 
 VALUE
 oj_sc_parse(int argc, VALUE *argv, VALUE self) {
@@ -106,9 +171,33 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     pi.end_hash = respond_to(handler, oj_hash_end_id) ? end_hash : 0;
     pi.start_array = respond_to(handler, oj_array_start_id) ? start_array : 0;
     pi.end_array = respond_to(handler, oj_array_end_id) ? end_array : 0;
-    pi.add_value = respond_to(handler, oj_add_value_id) ? add_value : 0;
-    pi.add_cstr = 0;
-
+    if (respond_to(handler, oj_hash_set_id)) {
+	pi.hash_set_value = hash_set_value;
+	pi.hash_set_cstr = hash_set_cstr;
+	pi.hash_set_fix = hash_set_fix;
+    } else {
+	pi.hash_set_value = 0;
+	pi.hash_set_cstr = 0;
+	pi.hash_set_fix = 0;
+    }
+    if (respond_to(handler, oj_array_append_id)) {
+	pi.array_append_value = array_append_value;
+	pi.array_append_cstr = array_append_cstr;
+	pi.array_append_fix = array_append_fix;
+    } else {
+	pi.array_append_value = 0;
+	pi.array_append_cstr = 0;
+	pi.array_append_fix = 0;
+    }
+    if (respond_to(handler, oj_add_value_id)) {
+	pi.add_cstr = add_cstr;
+	pi.add_fix = add_fix;
+	pi.add_value = add_value;
+    } else {
+	pi.add_cstr = 0;
+	pi.add_fix = 0;
+	pi.add_value = 0;
+    }
     if (rb_type(input) == T_STRING) {
 	pi.json = StringValuePtr(input);
     } else {

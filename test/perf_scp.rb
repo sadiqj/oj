@@ -14,22 +14,43 @@ require 'oj'
 
 $verbose = false
 $indent = 0
-$iter = 10000
-$gets = 0
-$fetch = false
-$write = false
-$read = false
+$iter = 50000
+$with_bignum = false
+$size = 0
 
 opts = OptionParser.new
 opts.on("-v", "verbose")                                  { $verbose = true }
 opts.on("-c", "--count [Int]", Integer, "iterations")     { |i| $iter = i }
 opts.on("-i", "--indent [Int]", Integer, "indentation")   { |i| $indent = i }
-opts.on("-g", "--gets [Int]", Integer, "number of gets")  { |i| $gets = i }
-opts.on("-f", "fetch")                                    { $fetch = true }
-opts.on("-w", "write")                                    { $write = true }
-opts.on("-r", "read")                                     { $read = true }
+opts.on("-s", "--size [Int]", Integer, "size (~Kbytes)")    { |i| $size = i }
+opts.on("-b", "with bignum")                                { $with_bignum = true }
 opts.on("-h", "--help", "Show this display")              { puts opts; Process.exit!(0) }
 files = opts.parse(ARGV)
+
+$obj = {
+  'a' => 'Alpha', # string
+  'b' => true,    # boolean
+  'c' => 12345,   # number
+  'd' => [ true, [false, [-123456789, nil], 3.9676, ['Something else.', false], nil]], # mix it up array
+  'e' => { 'zero' => nil, 'one' => 1, 'two' => 2, 'three' => [3], 'four' => [0, 1, 2, 3, 4] }, # hash
+  'f' => nil,     # nil
+  'h' => { 'a' => { 'b' => { 'c' => { 'd' => {'e' => { 'f' => { 'g' => nil }}}}}}}, # deep hash, not that deep
+  'i' => [[[[[[[nil]]]]]]]  # deep array, again, not that deep
+}
+$obj['g'] = 12345678901234567890123456789 if $with_bignum
+
+if 0 < $size
+  o = $obj
+  $obj = []
+  (4 * $size).times do
+    $obj << o
+  end
+end
+
+Oj.default_options = { :indent => $indent, :mode => :compat }
+
+$json = Oj.dump($obj)
+$failed = {} # key is same as String used in tests later
 
 class AllSaj < Oj::Saj
   def initialize()
@@ -66,12 +87,14 @@ class AllHandler < Oj::ScHandler
   end
 
   def hash_start()
+    return nil
   end
 
   def hash_end()
   end
 
   def array_start()
+    return nil
   end
 
   def array_end()
@@ -79,6 +102,13 @@ class AllHandler < Oj::ScHandler
 
   def add_value(value)
   end
+
+  def hash_set(h, key, value)
+  end
+  
+  def array_append(a, value)
+  end
+
 end # AllHandler
 
 saj_handler = AllSaj.new()
@@ -86,23 +116,6 @@ no_saj = NoSaj.new()
 
 sc_handler = AllHandler.new()
 no_handler = NoHandler.new()
-
-$obj = {
-  'a' => 'Alpha', # string
-  'b' => true,    # boolean
-  'c' => 12345,   # number
-  'd' => [ true, [false, {'12345' => 12345, 'nil' => nil}, 3.967, { 'x' => 'something', 'y' => false, 'z' => true}, nil]], # mix it up array
-  'e' => { 'one' => 1, 'two' => 2 }, # hash
-  'f' => nil,     # nil
-  'g' => 12345678901234567890123456789, # big number
-  'h' => { 'a' => { 'b' => { 'c' => { 'd' => {'e' => { 'f' => { 'g' => nil }}}}}}}, # deep hash, not that deep
-  'i' => [[[[[[[nil]]]]]]]  # deep array, again, not that deep
-}
-
-Oj.default_options = { :indent => $indent, :mode => :compat }
-
-$json = Oj.dump($obj)
-$failed = {} # key is same as String used in tests later
 
 def capture_error(tag, orig, load_key, dump_key, &blk)
   begin
@@ -120,7 +133,6 @@ capture_error('JSON::Ext', $obj, 'generate', 'parse') { |o| JSON.generator = JSO
 if $verbose
   puts "json:\n#{$json}\n"
 end
-
 
 puts '-' * 80
 puts "Parse Performance"

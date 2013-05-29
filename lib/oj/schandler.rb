@@ -60,5 +60,11 @@ module Oj
     def add_value(value)
     end
     
+    def hash_set(h, key, value)
+    end
+    
+    def array_append(a, value)
+    end
+    
   end # ScHandler
 end # Oj

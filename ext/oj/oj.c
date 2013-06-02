@@ -139,6 +139,7 @@ struct _Options	oj_default_options = {
     Yes,		// bigdec_as_num
     No,			// bigdec_load
     json_class,		// create_id
+    0,			// create_id_len
     4095,		// max_stack
     9,			// sec_prec
     0,			// dump_opts
@@ -318,6 +319,7 @@ set_def_opts(VALUE self, VALUE opts) {
 		xfree((char*)oj_default_options.create_id);
 	    }
 	    oj_default_options.create_id = 0;
+	    oj_default_options.create_id_len = 0;
 	}
 	v = rb_hash_lookup(opts, create_id_sym);
 	if (Qnil != v) {
@@ -325,6 +327,7 @@ set_def_opts(VALUE self, VALUE opts) {
 
 	    oj_default_options.create_id = ALLOC_N(char, len);
 	    strcpy((char*)oj_default_options.create_id, StringValuePtr(v));
+	    oj_default_options.create_id_len = len - 1;
 	}
     }
 
@@ -900,12 +903,14 @@ mimic_create_id(VALUE self, VALUE id) {
 	    xfree((char*)oj_default_options.create_id);
 	}
 	oj_default_options.create_id = 0;
+	oj_default_options.create_id_len = 0;
     }
     if (Qnil != id) {
 	size_t	len = RSTRING_LEN(id) + 1;
 
 	oj_default_options.create_id = ALLOC_N(char, len);
 	strcpy((char*)oj_default_options.create_id, StringValuePtr(id));
+	oj_default_options.create_id_len = len - 1;
     }
     return id;
 }
@@ -1012,7 +1017,9 @@ void Init_oj() {
     rb_define_module_function(Oj, "load", load, -1);
     rb_define_module_function(Oj, "load_file", load_file, -1);
     rb_define_module_function(Oj, "safe_load", safe_load, 1);
+
     rb_define_module_function(Oj, "strict_load", oj_strict_parse, -1);
+    rb_define_module_function(Oj, "compat_load", oj_compat_parse, -1);
 
     rb_define_module_function(Oj, "dump", dump, -1);
     rb_define_module_function(Oj, "to_file", to_file, -1);

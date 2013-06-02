@@ -120,89 +120,28 @@ array_append_value(ParseInfo pi, VALUE value) {
     rb_ary_push(stack_peek(&pi->stack)->val, value);
 }
 
+void
+oj_set_strict_callbacks(ParseInfo pi) {
+    pi->start_hash = start_hash;
+    pi->end_hash = 0;
+    pi->hash_set_cstr = hash_set_cstr;
+    pi->hash_set_fix = hash_set_fix;
+    pi->hash_set_value = hash_set_value;
+    pi->start_array = start_array;
+    pi->end_array = 0;
+    pi->array_append_cstr = array_append_cstr;
+    pi->array_append_fix = array_append_fix;
+    pi->array_append_value = array_append_value;
+    pi->add_cstr = add_cstr;
+    pi->add_fix = add_fix;
+    pi->add_value = add_value;
+}
+
 VALUE
 oj_strict_parse(int argc, VALUE *argv, VALUE self) {
     struct _ParseInfo	pi;
-    char		*buf = 0;
-    VALUE		input;
-    VALUE		result = Qnil;
 
-    if (argc < 1) {
-	rb_raise(rb_eArgError, "Wrong number of arguments to strict_parse.");
-    }
-    input = argv[0];
-    pi.options = oj_default_options;
-    if (2 == argc) {
-	oj_parse_options(argv[1], &pi.options);
-    }
-    pi.cbc = (void*)0;
+    oj_set_strict_callbacks(&pi);
 
-    pi.start_hash = start_hash;
-    pi.end_hash = 0;
-    pi.hash_set_cstr = hash_set_cstr;
-    pi.hash_set_fix = hash_set_fix;
-    pi.hash_set_value = hash_set_value;
-    pi.start_array = start_array;
-    pi.end_array = 0;
-    pi.array_append_cstr = array_append_cstr;
-    pi.array_append_fix = array_append_fix;
-    pi.array_append_value = array_append_value;
-    pi.add_cstr = add_cstr;
-    pi.add_fix = add_fix;
-    pi.add_value = add_value;
-
-    if (rb_type(input) == T_STRING) {
-	pi.json = StringValuePtr(input);
-    } else {
-	VALUE	clas = rb_obj_class(input);
-	VALUE	s;
-
-	if (oj_stringio_class == clas) {
-	    s = rb_funcall2(input, oj_string_id, 0, 0);
-	    pi.json = StringValuePtr(s);
-#ifndef JRUBY_RUBY
-#if !IS_WINDOWS
-	    // JRuby gets confused with what is the real fileno.
-	} else if (rb_respond_to(input, oj_fileno_id) && Qnil != (s = rb_funcall(input, oj_fileno_id, 0))) {
-	    int		fd = FIX2INT(s);
-	    ssize_t	cnt;
-	    size_t	len = lseek(fd, 0, SEEK_END);
-
-	    lseek(fd, 0, SEEK_SET);
-	    if (pi.options.max_stack < len) {
-		buf = ALLOC_N(char, len + 1);
-		pi.json = buf;
-	    } else {
-		pi.json = ALLOCA_N(char, len + 1);
-	    }
-	    if (0 >= (cnt = read(fd, (char*)pi.json, len)) || cnt != (ssize_t)len) {
-		if (0 != buf) {
-		    xfree(buf);
-		}
-		rb_raise(rb_eIOError, "failed to read from IO Object.");
-	    }
-	    ((char*)pi.json)[len] = '\0';
-	    /* skip UTF-8 BOM if present */
-	    if (0xEF == (uint8_t)*pi.json && 0xBB == (uint8_t)pi.json[1] && 0xBF == (uint8_t)pi.json[2]) {
-		pi.json += 3;
-	    }
-#endif
-#endif
-	} else if (rb_respond_to(input, oj_read_id)) {
-	    s = rb_funcall2(input, oj_read_id, 0, 0);
-	    pi.json = StringValuePtr(s);
-	} else {
-	    rb_raise(rb_eArgError, "strict_parse() expected a String or IO Object.");
-	}
-    }
-    oj_parse2(&pi);
-    if (0 != buf) {
-	xfree(buf);
-    }
-    result = stack_head_val(&pi.stack);
-    stack_cleanup(&pi.stack);
-    if (err_has(&pi.err)) {
-	oj_err_raise(&pi.err);
-    }
-    return result;
+    return oj_pi_parse(argc, argv, &pi);
 }

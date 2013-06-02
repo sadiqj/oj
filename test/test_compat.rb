@@ -19,6 +19,28 @@ require 'oj'
 $ruby = RUBY_DESCRIPTION.split(' ')[0]
 $ruby = 'ree' if 'ruby' == $ruby && RUBY_DESCRIPTION.include?('Ruby Enterprise Edition')
 
+class Jeez
+  attr_accessor :x, :y
+
+  def initialize(x, y)
+    @x = x
+    @y = y
+  end
+
+  def eql?(o)
+    self.class == o.class && @x == o.x && @y == o.y
+  end
+  alias == eql?
+  
+  def to_json()
+    %{{"json_class":"#{self.class}","x":#{@x},"y":#{@y}}}
+  end
+
+  def self.json_create(h)
+    self.new(h['x'], h['y'])
+  end
+end # Jeez
+
 def hash_eql(h1, h2)
   return false if h1.size != h2.size
   h1.keys.each do |k|
@@ -27,7 +49,7 @@ def hash_eql(h1, h2)
   true
 end
 
-class StrictJuice < ::Test::Unit::TestCase
+class CompatJuice < ::Test::Unit::TestCase
 
   def test_nil
     dump_and_load(nil, false)
@@ -132,7 +154,7 @@ class StrictJuice < ::Test::Unit::TestCase
 
   def test_hash_escaped_key
     json = %{{"a\nb":true,"c\td":false}}
-    obj = Oj.strict_load(json)
+    obj = Oj.compat_load(json)
     assert_equal({"a\nb" => true, "c\td" => false}, obj)
   end
 
@@ -141,7 +163,7 @@ class StrictJuice < ::Test::Unit::TestCase
   end
 
   # BigDecimal
-  def test_bigdecimal_strict
+  def test_bigdecimal_compat
     dump_and_load(BigDecimal.new('3.14159265358979323846'), false)
   end
 
@@ -162,7 +184,7 @@ class StrictJuice < ::Test::Unit::TestCase
 }
 }
     input = StringIO.new(json)
-    obj = Oj.strict_load(input)
+    obj = Oj.compat_load(input)
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
 
@@ -175,7 +197,7 @@ class StrictJuice < ::Test::Unit::TestCase
 }
 }) }
     f = File.new(filename)
-    obj = Oj.strict_load(f)
+    obj = Oj.compat_load(f)
     f.close()
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
@@ -188,7 +210,7 @@ class StrictJuice < ::Test::Unit::TestCase
   "z": [1,2,3]
 }
 }
-    obj = Oj.strict_load(json, :symbol_keys => true)
+    obj = Oj.compat_load(json, :symbol_keys => true)
     assert_equal({ :x => true, :y => 58, :z => [1, 2, 3]}, obj)
   end
 
@@ -201,7 +223,7 @@ class StrictJuice < ::Test::Unit::TestCase
 3 // six
 ]}
 }
-    obj = Oj.strict_load(json)
+    obj = Oj.compat_load(json)
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
 
@@ -211,7 +233,7 @@ class StrictJuice < ::Test::Unit::TestCase
   "y":58,
   "z": [1,2,3]}
 }
-    obj = Oj.strict_load(json)
+    obj = Oj.compat_load(json)
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
 
@@ -224,14 +246,27 @@ class StrictJuice < ::Test::Unit::TestCase
 ]
 }
 }
-    obj = Oj.strict_load(json)
+    obj = Oj.compat_load(json)
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
 
+  def test_json_object_compat
+    obj = Jeez.new(true, 58)
+    dump_and_load(obj, true)
+  end
+
+  def test_json_object_create_id
+    expected = Jeez.new(true, 58)
+    json = Oj.dump(expected, :indent => 2, :mode => :compat)
+    puts "*** json: #{json}"
+    obj = Oj.compat_load(json)
+    assert_equal(expected, obj)
+  end
+
   def dump_and_load(obj, trace=false)
-    json = Oj.dump(obj, :indent => 2)
+    json = Oj.dump(obj, :indent => 2, :mode => :compat)
     puts json if trace
-    loaded = Oj.strict_load(json);
+    loaded = Oj.compat_load(json);
     assert_equal(obj, loaded)
     loaded
   end

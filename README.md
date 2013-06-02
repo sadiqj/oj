@@ -22,15 +22,21 @@ A fast JSON parser and Object marshaller as a Ruby gem.
 
 [![Build Status](https://secure.travis-ci.org/ohler55/oj.png?branch=master)](http://travis-ci.org/ohler55/oj)
 
+## <a name="links">Performance Comparisons</a>
+
+[Oj Strict Mode Performance](http://www.ohler.com/oj_misc/performance_strict.html) compares Oj strict mode parser performance to other JSON parsers.
+
+[Oj Callback Performance](http://www.ohler.com/oj_misc/performance_callback.html) compares Oj callback parser performance to other JSON parsers.
+
+## <a name="links">Sample Code</a>
+
+[Oj Sample Code](http://www.ohler.com/oj/misc/samples.html) some sample code.
+
 ## <a name="links">Links of Interest</a>
 
 *Fast XML parser and marshaller on RubyGems*: https://rubygems.org/gems/ox
 
 *Fast XML parser and marshaller on GitHub*: https://github.com/ohler55/ox
-
-[Oj Performance Comparison](http://www.ohler.com/oj/misc/performance_comparison.html) compares Oj performance to other JSON parsers.
-
-[Oj Sample Code](http://www.ohler.com/oj/misc/samples.html) some sample code.
 
 [Oj Object Encoding Format](http://www.ohler.com/oj/misc/samples.html) describes the OJ Object JSON encoding format.
 

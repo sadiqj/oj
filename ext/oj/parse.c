@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <math.h>
 
 #include "oj.h"
@@ -69,7 +70,7 @@ skip_comment(ParseInfo pi) {
 	pi->cur++;
 	for (; '\0' != *pi->cur; pi->cur++) {
 	    if ('*' == *pi->cur && '/' == *(pi->cur + 1)) {
-		pi->cur++;
+		pi->cur += 2;
 		return;
 	    } else if ('\0' == *pi->cur) {
 		oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "comment not terminated");
@@ -589,8 +590,9 @@ hash_start(ParseInfo pi) {
 
 static void
 hash_end(ParseInfo pi) {
-    Val	hash = stack_pop(&pi->stack);
+    Val	hash = stack_peek(&pi->stack);
 
+    // leave hash on stack until just before add
     if (0 == hash) {
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "unexpected hash close");
     } else if (NEXT_HASH_COMMA != hash->next && NEXT_HASH_NEW != hash->next) {
@@ -599,6 +601,7 @@ hash_end(ParseInfo pi) {
 	if (0 != pi->end_hash) {
 	    pi->end_hash(pi);
 	}
+	stack_pop(&pi->stack);
 	add_value(pi, hash->val);
     }
 }
@@ -709,4 +712,75 @@ oj_set_error_at(ParseInfo pi, VALUE err_clas, const char* file, int line, const 
     va_end(ap);
     pi->err.clas = err_clas;
     _oj_err_set_with_location(&pi->err, err_clas, msg, pi->json, pi->cur - 1, file, line);
+}
+
+VALUE
+oj_pi_parse(int argc, VALUE *argv, ParseInfo pi) {
+    char	*buf = 0;
+    VALUE	input;
+    VALUE	result = Qnil;
+
+    if (argc < 1) {
+	rb_raise(rb_eArgError, "Wrong number of arguments to parse.");
+    }
+    input = argv[0];
+    pi->options = oj_default_options;
+    if (2 == argc) {
+	oj_parse_options(argv[1], &pi->options);
+    }
+    pi->cbc = (void*)0;
+    if (rb_type(input) == T_STRING) {
+	pi->json = StringValuePtr(input);
+    } else {
+	VALUE	clas = rb_obj_class(input);
+	VALUE	s;
+
+	if (oj_stringio_class == clas) {
+	    s = rb_funcall2(input, oj_string_id, 0, 0);
+	    pi->json = StringValuePtr(s);
+#ifndef JRUBY_RUBY
+#if !IS_WINDOWS
+	    // JRuby gets confused with what is the real fileno.
+	} else if (rb_respond_to(input, oj_fileno_id) && Qnil != (s = rb_funcall(input, oj_fileno_id, 0))) {
+	    int		fd = FIX2INT(s);
+	    ssize_t	cnt;
+	    size_t	len = lseek(fd, 0, SEEK_END);
+
+	    lseek(fd, 0, SEEK_SET);
+	    if (pi->options.max_stack < len) {
+		buf = ALLOC_N(char, len + 1);
+		pi->json = buf;
+	    } else {
+		pi->json = ALLOCA_N(char, len + 1);
+	    }
+	    if (0 >= (cnt = read(fd, (char*)pi->json, len)) || cnt != (ssize_t)len) {
+		if (0 != buf) {
+		    xfree(buf);
+		}
+		rb_raise(rb_eIOError, "failed to read from IO Object.");
+	    }
+	    ((char*)pi->json)[len] = '\0';
+	    /* skip UTF-8 BOM if present */
+	    if (0xEF == (uint8_t)*pi->json && 0xBB == (uint8_t)pi->json[1] && 0xBF == (uint8_t)pi->json[2]) {
+		pi->json += 3;
+	    }
+#endif
+#endif
+	} else if (rb_respond_to(input, oj_read_id)) {
+	    s = rb_funcall2(input, oj_read_id, 0, 0);
+	    pi->json = StringValuePtr(s);
+	} else {
+	    rb_raise(rb_eArgError, "strict_parse() expected a String or IO Object.");
+	}
+    }
+    oj_parse2(pi);
+    if (0 != buf) {
+	xfree(buf);
+    }
+    result = stack_head_val(&pi->stack);
+    stack_cleanup(&pi->stack);
+    if (err_has(&pi->err)) {
+	oj_err_raise(&pi->err);
+    }
+    return result;
 }

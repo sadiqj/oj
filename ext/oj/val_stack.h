@@ -61,9 +61,11 @@ typedef enum {
 typedef struct _Val {
     VALUE	val;
     const char	*key;
-    uint32_t	klen;
+    const char	*classname;
+    uint16_t	klen;
+    uint16_t	clen;
     char	next; // ValNext
-    char	type; // ValType
+    //char	type; // ValType
 } *Val;
 
 typedef struct _ValStack {
@@ -80,9 +82,11 @@ stack_init(ValStack stack) {
     stack->tail = stack->head;
     stack->head->val = Qundef;
     stack->head->key = 0;
+    stack->head->classname = 0;
     stack->head->klen = 0;
+    stack->head->clen = 0;
     stack->head->next = NEXT_NONE;
-    stack->head->type = TYPE_NONE;
+    //stack->head->type = TYPE_NONE;
 }
 
 inline static int
@@ -114,7 +118,11 @@ stack_push(ValStack stack, VALUE val, ValNext next) {
     }
     stack->tail->val = val;
     stack->tail->next = next;
-    stack->tail->type = TYPE_NONE;
+    stack->tail->classname = 0;
+    stack->tail->key = 0;
+    stack->tail->clen = 0;
+    stack->tail->klen = 0;
+    //stack->tail->type = TYPE_NONE;
     stack->tail++;
 }
 

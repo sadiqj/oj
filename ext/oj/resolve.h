@@ -1,4 +1,4 @@
-/* parse.h
+/* resolve.h
  * Copyright (c) 2011, Peter Ohler
  * All rights reserved.
  * 
@@ -28,41 +28,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __OJ_PARSE_H__
-#define __OJ_PARSE_H__
+#ifndef __OJ_RESOLVE_H__
+#define __OJ_RESOLVE_H__
 
 #include "ruby.h"
-#include "oj.h"
-#include "val_stack.h"
 
-typedef struct _ParseInfo {
-    const char		*json;
-    const char		*cur;
-    struct _Err		err;
-    struct _Options	options;
-    void		*cbc;
-    struct _ValStack	stack;
-    VALUE		(*start_hash)(struct _ParseInfo *pi);
-    void		(*end_hash)(struct _ParseInfo *pi);
-    void		(*hash_set_cstr)(struct _ParseInfo *pi, const char *key, size_t klen, const char *str, size_t len);
-    void		(*hash_set_fix)(struct _ParseInfo *pi, const char *key, size_t klen, int64_t num);
-    void		(*hash_set_value)(struct _ParseInfo *pi, const char *key, size_t klen, VALUE value);
+extern VALUE	oj_name2class(ParseInfo pi, const char *name, size_t len);
 
-    VALUE		(*start_array)(struct _ParseInfo *pi);
-    void		(*end_array)(struct _ParseInfo *pi);
-    void		(*array_append_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
-    void		(*array_append_fix)(struct _ParseInfo *pi, int64_t num);
-    void		(*array_append_value)(struct _ParseInfo *pi, VALUE value);
-
-    void		(*add_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
-    void		(*add_fix)(struct _ParseInfo *pi, int64_t num);
-    void		(*add_value)(struct _ParseInfo *pi, VALUE val);
-} *ParseInfo;
-
-extern void	oj_parse2(ParseInfo pi);
-extern void	oj_set_error_at(ParseInfo pi, VALUE err_clas, const char* file, int line, const char *format, ...);
-extern VALUE	oj_pi_parse(int argc, VALUE *argv, ParseInfo pi);
-
-extern void	oj_set_strict_callbacks(ParseInfo pi);
-
-#endif /* __OJ_PARSE_H__ */
+#endif /* __OJ_RESOLVE_H__ */

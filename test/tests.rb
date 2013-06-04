@@ -237,10 +237,11 @@ class Juice < ::Test::Unit::TestCase
   def test_symbol_strict
     begin
       Oj.dump(:abc, :mode => :strict)
-      assert(false)
     rescue Exception
       assert(true)
+      return
     end
+    assert(false, "*** expected an exception")
   end
   def test_symbol_null
     json = Oj.dump(:abc, :mode => :null)

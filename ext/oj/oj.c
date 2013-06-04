@@ -139,7 +139,7 @@ struct _Options	oj_default_options = {
     Yes,		// bigdec_as_num
     No,			// bigdec_load
     json_class,		// create_id
-    0,			// create_id_len
+    10,			// create_id_len
     4095,		// max_stack
     9,			// sec_prec
     0,			// dump_opts
@@ -407,6 +407,27 @@ oj_parse_options(VALUE ropts, Options copts) {
 		copts->time_format = RubyTime;
 	    } else {
 		rb_raise(rb_eArgError, ":time_format must be :unix, :xmlschema, or :ruby.");
+	    }
+	}
+	if (Qundef != (v = rb_hash_lookup2(ropts, create_id_sym, Qundef))) {
+	    if (Qnil == v) {
+		if (json_class != oj_default_options.create_id) {
+		    xfree((char*)oj_default_options.create_id);
+		}
+		copts->create_id = 0;
+		copts->create_id_len = 0;
+	    } else if (T_STRING == rb_type(v)) {
+		size_t		len = RSTRING_LEN(v);
+		const char	*str = StringValuePtr(v);
+
+		if (len != copts->create_id_len ||
+		    0 != strcmp(copts->create_id, str)) {
+		    copts->create_id = ALLOC_N(char, len + 1);
+		    strcpy((char*)copts->create_id, str);
+		    copts->create_id_len = len;
+		}
+	    } else {
+		rb_raise(rb_eArgError, ":create_id must be string.");
 	    }
 	}
 	for (o = ynos; 0 != o->attr; o++) {

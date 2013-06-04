@@ -55,11 +55,12 @@ oj_cache_new(Cache *cache) {
 }
 
 VALUE
-oj_cache_get(Cache cache, const char *key, VALUE **slot) {
+oj_cache_get(Cache cache, const char *key, size_t len, VALUE **slot) {
     unsigned char       *k = (unsigned char*)key;
+    unsigned char	*end = k + len;
     Cache               *cp;
 
-    for (; '\0' != *k; k++) {
+    for (; k < end; k++) {
         cp = cache->slots + (unsigned int)(*k >> 4); // upper 4 bits
         if (0 == *cp) {
             oj_cache_new(cp);
@@ -69,14 +70,15 @@ oj_cache_get(Cache cache, const char *key, VALUE **slot) {
         if (0 == *cp) {
             oj_cache_new(cp);
             cache = *cp;
-            cache->key = ('\0' == *(k + 1)) ? 0 : strdup(key);
+            cache->key = (k < end - 1) ? strndup(key, len) : 0;
             break;
         } else {
             cache = *cp;
             if (Qundef != cache->value && 0 != cache->key) {
                 unsigned char   *ck = (unsigned char*)(cache->key + (unsigned int)(k - (unsigned char*)key + 1));
+		int		clen = len - (end - k);
 
-                if (0 == strcmp((char*)ck, (char*)(k + 1))) {
+                if (0 == strncmp((char*)ck, (char*)(k + 1), clen) && '\0' == ck[clen]) {
                     break;
                 } else {
                     Cache     *cp2 = cp;

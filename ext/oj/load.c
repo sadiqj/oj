@@ -204,7 +204,7 @@ classname2class(const char *name, ParseInfo pi) {
 #if SAFE_CACHE
     pthread_mutex_lock(&oj_cache_mutex);
 #endif
-    if (Qundef == (clas = oj_cache_get(oj_class_cache, name, &slot))) {
+    if (Qundef == (clas = oj_cache_get(oj_class_cache, name, strlen(name), &slot))) {
 	if (Qundef != (clas = resolve_classpath(name, pi))) {
 	    *slot = clas;
 	}
@@ -399,6 +399,7 @@ read_obj(ParseInfo pi) {
     VALUE	key = Qundef;
     VALUE	val = Qundef;
     const char	*ks;
+    size_t	klen;
     int		obj_type = T_NONE;
     const char	*json_class_name = 0;
     Mode	mode = pi->options->mode;
@@ -415,6 +416,7 @@ read_obj(ParseInfo pi) {
     while (1) {
 	next_non_white(pi);
 	ks = 0;
+	klen = 0;
 	key = Qundef;
 	val = Qundef;
 	if ('"' != *pi->s || Qundef == (key = read_str(pi, 0))) {
@@ -428,8 +430,10 @@ read_obj(ParseInfo pi) {
 	}
 	if (T_STRING == rb_type(key)) {
 	    ks = StringValuePtr(key);
+	    klen = RSTRING_LEN(key);
 	} else {
 	    ks = 0;
+	    klen = 0;
 	}
 	if (0 != ks && Qundef == obj && ObjectMode == mode) {
 	    if ('^' == *ks && '\0' == ks[2]) { // special directions
@@ -519,7 +523,7 @@ read_obj(ParseInfo pi) {
 #if SAFE_CACHE
 		    pthread_mutex_lock(&oj_cache_mutex);
 #endif
-		    if (Qundef == (var_id = oj_cache_get(oj_attr_cache, ks, &slot))) {
+		    if (Qundef == (var_id = oj_cache_get(oj_attr_cache, ks, klen, &slot))) {
 			char	attr[1024];
 
 			if ('~' == *ks) {

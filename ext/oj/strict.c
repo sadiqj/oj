@@ -38,6 +38,10 @@
 #include "parse.h"
 
 static void
+noop_end(struct _ParseInfo *pi) {
+}
+
+static void
 add_value(ParseInfo pi, VALUE val) {
     pi->stack.head->val = val;
 }
@@ -123,12 +127,12 @@ array_append_value(ParseInfo pi, VALUE value) {
 void
 oj_set_strict_callbacks(ParseInfo pi) {
     pi->start_hash = start_hash;
-    pi->end_hash = 0;
+    pi->end_hash = noop_end;
     pi->hash_set_cstr = hash_set_cstr;
     pi->hash_set_fix = hash_set_fix;
     pi->hash_set_value = hash_set_value;
     pi->start_array = start_array;
-    pi->end_array = 0;
+    pi->end_array = noop_end;
     pi->array_append_cstr = array_append_cstr;
     pi->array_append_fix = array_append_fix;
     pi->array_append_value = array_append_value;

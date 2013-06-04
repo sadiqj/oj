@@ -52,10 +52,9 @@ resolve_classname(VALUE mod, const char *classname, int auto_define) {
 }
 
 static VALUE
-resolve_classpath(ParseInfo pi, const char *name, size_t len) {
+resolve_classpath(ParseInfo pi, const char *name, size_t len, int auto_define) {
     char	class_name[1024];
     VALUE	clas;
-    int		auto_define = (Yes == pi->options.auto_define && 0); // TBD
     char	*end = class_name + sizeof(class_name) - 1;
     char	*s;
     const char	*n = name;
@@ -65,21 +64,16 @@ resolve_classpath(ParseInfo pi, const char *name, size_t len) {
 	if (':' == *n) {
 	    *s = '\0';
 	    n++;
+	    len--;
 	    if (':' != *n) {
-		//raise_error("Invalid classname, expected another ':'", pi->str, pi->s); // TBD set error
 		return Qundef;
 	    }
 	    if (Qundef == (clas = resolve_classname(clas, class_name, auto_define))) {
-		char	buf[256];
-
-		snprintf(buf, sizeof(buf) - 1, "Class %s not defined", class_name);
-		//raise_error(buf, pi->str, pi->s);
 		return Qundef;
 	    }
 	    s = class_name;
 	} else if (end <= s) {
 	    return Qundef;
-	    //raise_error("Invalid classname, limit is 1024 characters", pi->str, pi->s);
 	} else {
 	    *s++ = *n;
 	}
@@ -89,21 +83,18 @@ resolve_classpath(ParseInfo pi, const char *name, size_t len) {
 }
 
 VALUE
-oj_name2class(ParseInfo pi, const char *name, size_t len) {
-    return resolve_classpath(pi, name, len);
-
-#if 0
+oj_name2class(ParseInfo pi, const char *name, size_t len, int auto_define) {
     VALUE	clas;
     VALUE	*slot;
 
-    if (1 || No == pi->options.class_cache) {
-	return resolve_classpath(pi, name);
+    if (No == pi->options.class_cache) { // TBD activate caches
+	return resolve_classpath(pi, name, len, auto_define);
     }
 #if SAFE_CACHE
     pthread_mutex_lock(&oj_cache_mutex);
 #endif
-    if (Qundef == (clas = oj_cache_get(oj_class_cache, name, &slot))) {
-	if (Qundef != (clas = resolve_classpath(pi, name))) {
+    if (Qundef == (clas = oj_cache_get(oj_class_cache, name, len, &slot))) {
+	if (Qundef != (clas = resolve_classpath(pi, name, len, auto_define))) {
 	    *slot = clas;
 	}
     }
@@ -112,7 +103,6 @@ oj_name2class(ParseInfo pi, const char *name, size_t len) {
 #endif
 
     return clas;
-#endif
 }
 
 

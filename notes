@@ -3,23 +3,15 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- change val_stack STACK_INC and fix broken test
-- try changing val_stack add_value to just check, move hash push to somewhere else?
- - add string and length to _Val to use as key
-  - makes stack thicker but simplifies key management
-  - maybe make separate callback for hash_set
-  - should add value take a string?
-   - if so what about array and hash members?
-   - nice to not have ruby in the parser except in stack for callbacks to use
+- new cache using hash
+ - fix size to 1024
+ - make first character the length mod 256
+ - could add hash value to start if uint32
 
+- make scp work with all c callbacks
 
-- allow maps to be used for classnames when encoding and decoding objects
- - build a string to string map/table that allows lookups in either direction
- - could use exising cache to do the mapping for decode
-  - problem if no class_cache
+- why is new strict slightly slower than old
 
-- try hash for cache/str-str mapping
- - 
 
 ---------------------------
 Tried a separate thread for the parser and the results were poor. The parsing is 10% to 15% of the total so splitting

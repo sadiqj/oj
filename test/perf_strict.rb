@@ -101,7 +101,7 @@ if $verbose
 end
 
 puts '-' * 80
-puts "Load/Parse Performance"
+puts "Strict Parse Performance"
 perf = Perf.new()
 unless $failed.has_key?('JSON::Ext')
   perf.add('JSON::Ext', 'parse') { JSON.parse($json) }

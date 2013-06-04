@@ -39,7 +39,7 @@ typedef struct _Cache   *Cache;
 
 extern void     oj_cache_new(Cache *cache);
 
-extern VALUE    oj_cache_get(Cache cache, const char *key, VALUE **slot);
+extern VALUE    oj_cache_get(Cache cache, const char *key, size_t len, VALUE **slot);
 
 extern void     oj_cache_print(Cache cache);
 

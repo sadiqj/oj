@@ -32,7 +32,7 @@ class Jeez
   end
   alias == eql?
   
-  def to_json()
+  def to_json(*a)
     %{{"json_class":"#{self.class}","x":#{@x},"y":#{@y}}}
   end
 
@@ -40,6 +40,35 @@ class Jeez
     self.new(h['x'], h['y'])
   end
 end # Jeez
+
+module One
+  module Two
+    module Three
+      class Deep
+
+        def initialize()
+        end
+
+        def eql?(o)
+          self.class == o.class
+        end
+        alias == eql?
+
+        def to_hash()
+          {'json_class' => "#{self.class.name}"}
+        end
+
+        def to_json(*a)
+          %{{"json_class":"#{self.class.name}"}}
+        end
+
+        def self.json_create(h)
+          self.new()
+        end
+      end # Deep
+    end # Three
+  end # Two
+end # One
 
 def hash_eql(h1, h2)
   return false if h1.size != h2.size
@@ -252,13 +281,52 @@ class CompatJuice < ::Test::Unit::TestCase
 
   def test_json_object_compat
     obj = Jeez.new(true, 58)
-    dump_and_load(obj, true)
+    dump_and_load(obj, false)
+  end
+
+  def test_json_module_object
+    obj = One::Two::Three::Deep.new()
+    dump_and_load(obj, false)
   end
 
   def test_json_object_create_id
     expected = Jeez.new(true, 58)
     json = Oj.dump(expected, :indent => 2, :mode => :compat)
-    puts "*** json: #{json}"
+    obj = Oj.compat_load(json)
+    assert_equal(expected, obj)
+  end
+
+  def test_json_object_bad
+    json = %{{"json_class":"Junk","x":true}}
+    begin
+      Oj.compat_load(json)
+    rescue Exception => e
+      assert_equal("Oj::ParseError", e.class().name)
+      return
+    end
+    assert(false, "*** expected an exception")
+  end
+
+  def test_json_object_create_cache
+    expected = Jeez.new(true, 58)
+    json = Oj.dump(expected, :indent => 2, :mode => :compat)
+    obj = Oj.compat_load(json, :class_cache => true)
+    assert_equal(expected, obj)
+    obj = Oj.compat_load(json, :class_cache => false)
+    assert_equal(expected, obj)
+  end
+
+  def test_json_object_create_id_other
+    expected = Jeez.new(true, 58)
+    json = Oj.dump(expected, :indent => 2, :mode => :compat)
+    json.gsub!('json_class', '_class_')
+    obj = Oj.compat_load(json, :create_id => "_class_")
+    assert_equal(expected, obj)
+  end
+
+  def test_json_object_create_deep
+    expected = One::Two::Three::Deep.new()
+    json = Oj.dump(expected, :indent => 2, :mode => :compat)
     obj = Oj.compat_load(json)
     assert_equal(expected, obj)
   end

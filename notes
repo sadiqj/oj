@@ -4,9 +4,8 @@
 ^c^s show subtree
 
 - new cache using hash
- - fix size to 1024
- - make first character the length mod 256
- - could add hash value to start if uint32
+ - better strings for tests
+ - maybe oj & ox classes or core ruby classes
 
 - make scp work with all c callbacks
 

@@ -38,6 +38,7 @@
 
 #include "oj.h"
 #include "parse.h"
+#include "hash.h"
 
 typedef struct _YesNoOpt {
     VALUE	sym;
@@ -1020,6 +1021,23 @@ define_mimic_json(int argc, VALUE *argv, VALUE self) {
     return mimic;
 }
 
+#if 0
+extern void	oj_cache_test();
+extern void	oj_hash_test();
+
+static VALUE
+cache_test(VALUE self) {
+    oj_cache_test();
+    return Qnil;
+}
+
+static VALUE
+hash_test(VALUE self) {
+    oj_hash_test();
+    return Qnil;
+}
+#endif
+
 void Init_oj() {
     Odd	odd;
     ID	*idp;
@@ -1041,6 +1059,7 @@ void Init_oj() {
 
     rb_define_module_function(Oj, "strict_load", oj_strict_parse, -1);
     rb_define_module_function(Oj, "compat_load", oj_compat_parse, -1);
+    rb_define_module_function(Oj, "object_load", oj_object_parse, -1);
 
     rb_define_module_function(Oj, "dump", dump, -1);
     rb_define_module_function(Oj, "to_file", to_file, -1);
@@ -1113,6 +1132,7 @@ void Init_oj() {
 
     oj_cache_new(&oj_class_cache);
     oj_cache_new(&oj_attr_cache);
+    oj_hash_init();
 
     odd = odds;
     // Rational
@@ -1171,6 +1191,10 @@ void Init_oj() {
     pthread_mutex_init(&oj_cache_mutex, 0);
 #endif
     oj_init_doc();
+
+    //rb_define_module_function(Oj, "cache_test", cache_test, 0);
+    //rb_define_module_function(Oj, "hash_test", hash_test, 0);
+
 }
 
 // mimic JSON documentation

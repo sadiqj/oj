@@ -1,4 +1,4 @@
-/* resolve.c
+/* object.c
  * Copyright (c) 2012, Peter Ohler
  * All rights reserved.
  * 
@@ -28,82 +28,73 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "oj.h"
 #include "err.h"
 #include "parse.h"
-#include "hash.h"
+#include "resolve.h"
 
-inline static VALUE
-resolve_classname(VALUE mod, const char *classname, int auto_define) {
-    VALUE	clas;
-    ID		ci = rb_intern(classname);
+static void
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+    Val	parent = stack_peek(&pi->stack);
 
-    if (rb_const_defined_at(mod, ci)) {
-	clas = rb_const_get_at(mod, ci);
-    } else if (auto_define) {
-	clas = rb_define_class_under(mod, classname, oj_bag_class);
+    if (0 != pi->options.create_id &&
+	*pi->options.create_id == *key &&
+	pi->options.create_id_len == klen &&
+	0 == strncmp(pi->options.create_id, key, klen)) {
+	if (str < pi->json || pi->cur < str) {
+	    parent->classname = strndup(str, len);
+	} else {
+	    parent->classname = str;
+	}
+	parent->clen = len;
     } else {
-	clas = Qundef;
+	VALUE	rstr = rb_str_new(str, len);
+	VALUE	rkey = rb_str_new(key, klen);
+
+#if HAS_ENCODING_SUPPORT
+	rb_enc_associate(rstr, oj_utf8_encoding);
+	rb_enc_associate(rkey, oj_utf8_encoding);
+#endif
+	if (Yes == pi->options.sym_key) {
+	    rkey = rb_str_intern(rkey);
+	}
+	rb_hash_aset(parent->val, rkey, rstr);
     }
-    return clas;
 }
 
-static VALUE
-resolve_classpath(ParseInfo pi, const char *name, size_t len, int auto_define) {
-    char	class_name[1024];
-    VALUE	clas;
-    char	*end = class_name + sizeof(class_name) - 1;
-    char	*s;
-    const char	*n = name;
+static void
+end_hash(struct _ParseInfo *pi) {
+    Val	parent = stack_peek(&pi->stack);
 
-    clas = rb_cObject;
-    for (s = class_name; 0 < len; n++, len--) {
-	if (':' == *n) {
-	    *s = '\0';
-	    n++;
-	    len--;
-	    if (':' != *n) {
-		return Qundef;
-	    }
-	    if (Qundef == (clas = resolve_classname(clas, class_name, auto_define))) {
-		return Qundef;
-	    }
-	    s = class_name;
-	} else if (end <= s) {
-	    return Qundef;
+    if (0 != parent->classname) {
+	VALUE	clas;
+
+	clas = oj_name2class(pi, parent->classname, parent->clen, 0);
+	if (Qundef != clas) { // else an error
+	    parent->val = rb_funcall(clas, oj_json_create_id, 1, parent->val);
 	} else {
-	    *s++ = *n;
+	    char	buf[1024];
+
+	    memcpy(buf, parent->classname, parent->clen);
+	    buf[parent->clen] = '\0';
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "class %s is not defined", buf);
+	}
+	if (parent->classname < pi->json || pi->cur < parent->classname) {
+	    xfree((char*)parent->classname);
+	    parent->classname = 0;
 	}
     }
-    *s = '\0';
-    return resolve_classname(clas, class_name, auto_define);
 }
 
 VALUE
-oj_name2class(ParseInfo pi, const char *name, size_t len, int auto_define) {
-    VALUE	clas;
-    VALUE	*slot;
+oj_object_parse(int argc, VALUE *argv, VALUE self) {
+    struct _ParseInfo	pi;
 
-    if (No == pi->options.class_cache) {
-	return resolve_classpath(pi, name, len, auto_define);
-    }
-#if SAFE_CACHE
-    pthread_mutex_lock(&oj_cache_mutex);
-#endif
-    if (Qundef == (clas = oj_hash_get(name, len, &slot))) {
-	if (Qundef != (clas = resolve_classpath(pi, name, len, auto_define))) {
-	    *slot = clas;
-	}
-    }
-#if SAFE_CACHE
-    pthread_mutex_unlock(&oj_cache_mutex);
-#endif
+    oj_set_strict_callbacks(&pi);
+    pi.end_hash = end_hash;
+    pi.hash_set_cstr = hash_set_cstr;
 
-    return clas;
+    return oj_pi_parse(argc, argv, &pi);
 }
-
-

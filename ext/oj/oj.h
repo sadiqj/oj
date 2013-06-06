@@ -168,6 +168,7 @@ extern VALUE	oj_sc_parse(int argc, VALUE *argv, VALUE self);
 
 extern VALUE	oj_strict_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_compat_parse(int argc, VALUE *argv, VALUE self);
+extern VALUE	oj_object_parse(int argc, VALUE *argv, VALUE self);
 
 extern void	oj_parse_options(VALUE ropts, Options copts);
 

@@ -35,21 +35,29 @@
 #include "parse.h"
 #include "resolve.h"
 
+static VALUE
+hash_key(ParseInfo pi, const char *key, size_t klen) {
+    VALUE	rkey = rb_str_new(key, klen);
+
+#if HAS_ENCODING_SUPPORT
+    rb_enc_associate(rkey, oj_utf8_encoding);
+#endif
+    if (Yes == pi->options.sym_key) {
+	rkey = rb_str_intern(rkey);
+    }
+    return rkey;
+}
+
 static void
 hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
     Val	parent = stack_peek(&pi->stack);
 
-    if (0 != pi->options.create_id &&
-	*pi->options.create_id == *key &&
-	pi->options.create_id_len == klen &&
-	0 == strncmp(pi->options.create_id, key, klen)) {
-	if (str < pi->json || pi->cur < str) {
-	    parent->classname = strndup(str, len);
-	} else {
-	    parent->classname = str;
-	}
-	parent->clen = len;
-    } else {
+    if (Qnil == parent->val) {
+	// TBD if '^' == *key ...
+	parent->val = rb_hash_new();
+    }
+    // TBD switch on rb_type
+    if (1) {
 	VALUE	rstr = rb_str_new(str, len);
 	VALUE	rkey = rb_str_new(key, klen);
 
@@ -65,9 +73,41 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 }
 
 static void
+hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
+    Val	parent = stack_peek(&pi->stack);
+
+    // TBD if '^' == *key ...
+    if (Qnil == parent->val) {
+	parent->val = rb_hash_new();
+    }
+    rb_hash_aset(parent->val, hash_key(pi, key, klen), LONG2NUM(num));
+}
+
+static void
+hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
+    Val	parent = stack_peek(&pi->stack);
+
+    // TBD if '^' == *key ...
+    if (Qnil == parent->val) {
+	parent->val = rb_hash_new();
+    }
+    rb_hash_aset(parent->val, hash_key(pi, key, klen), value);
+}
+
+
+static VALUE
+start_hash(ParseInfo pi) {
+    return Qnil;
+}
+
+static void
 end_hash(struct _ParseInfo *pi) {
     Val	parent = stack_peek(&pi->stack);
 
+    if (Qnil == parent->val) {
+	parent->val = rb_hash_new();
+    }
+    // TBD only if parent->val is a Hash
     if (0 != parent->classname) {
 	VALUE	clas;
 
@@ -94,7 +134,10 @@ oj_object_parse(int argc, VALUE *argv, VALUE self) {
 
     oj_set_strict_callbacks(&pi);
     pi.end_hash = end_hash;
+    pi.start_hash = start_hash;
     pi.hash_set_cstr = hash_set_cstr;
+    pi.hash_set_fix = hash_set_fix;
+    pi.hash_set_value = hash_set_value;
 
     return oj_pi_parse(argc, argv, &pi);
 }

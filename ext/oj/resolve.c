@@ -31,6 +31,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#if SAFE_CACHE
+#include <pthread.h>
+#endif
 
 #include "oj.h"
 #include "err.h"
@@ -105,5 +108,3 @@ oj_name2class(ParseInfo pi, const char *name, size_t len, int auto_define) {
 
     return clas;
 }
-
-

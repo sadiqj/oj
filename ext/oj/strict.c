@@ -139,6 +139,7 @@ oj_set_strict_callbacks(ParseInfo pi) {
     pi->add_cstr = add_cstr;
     pi->add_fix = add_fix;
     pi->add_value = add_value;
+    pi->expect_value = 1;
 }
 
 VALUE

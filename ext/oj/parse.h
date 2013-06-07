@@ -42,6 +42,7 @@ typedef struct _ParseInfo {
     struct _Options	options;
     void		*cbc;
     struct _ValStack	stack;
+    int			expect_value;
     VALUE		(*start_hash)(struct _ParseInfo *pi);
     void		(*end_hash)(struct _ParseInfo *pi);
     void		(*hash_set_cstr)(struct _ParseInfo *pi, const char *key, size_t klen, const char *str, size_t len);

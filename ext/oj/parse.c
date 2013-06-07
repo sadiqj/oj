@@ -393,7 +393,7 @@ read_num(ParseInfo pi) {
 	    return;
 	}
 	pi->cur += 8;
-	if (0 != pi->add_value) {
+	if (pi->expect_value) {
 	    rnum = (neg) ? rb_float_new(-OJ_INFINITY) : rb_float_new(OJ_INFINITY);
 	    add_value(pi, rnum);
 	}
@@ -434,7 +434,7 @@ read_num(ParseInfo pi) {
 	    }
 	}
     }
-    if (0 != pi->add_value) { // short cut
+    if (pi->expect_value) { // short cut
 	if (Yes == pi->options.bigdec_load) {
 	    big = 1;
 	}

@@ -3,13 +3,12 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- new cache using hash
- - better strings for tests
- - maybe oj & ox classes or core ruby classes
+- object parser
+ - put Qnil in place of Hash for hash_start
+  - on end fill in correct type if still nil
+  - on hash_set_?? create hash if Qnil
 
-- make scp work with all c callbacks
-
-- why is new strict slightly slower than old
+- switch over to new and get rid of old
 
 
 ---------------------------

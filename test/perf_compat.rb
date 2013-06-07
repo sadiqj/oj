@@ -68,9 +68,11 @@ $obj = {
 Oj.default_options = { :indent => $indent, :mode => :compat }
 
 if 0 < $size
+  s = Oj.dump($obj, :mode => :compat).size + 1
+  cnt = $size * 1024 / s
   o = $obj
   $obj = []
-  (4 * $size).times do
+  cnt.times do
     $obj << o
   end
 end

@@ -29,6 +29,11 @@ $json = %{{
   "boolean" : true
 }}
 
+class NoHandler < Oj::ScHandler
+  def initialize()
+  end
+end
+
 class AllHandler < Oj::ScHandler
   attr_accessor :calls
 
@@ -199,6 +204,11 @@ class ScpTest < ::Test::Unit::TestCase
                   [:hash_set, "boolean", true],
                   [:hash_end],
                   [:add_value, {}]], handler.calls)
+  end
+
+  def test_none
+    handler = NoHandler.new()
+    Oj.sc_parse(handler, $json)
   end
 
   def test_fixnum_bad

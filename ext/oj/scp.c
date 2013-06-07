@@ -54,6 +54,50 @@ respond_to(VALUE obj, ID method) {
 #endif
 }
 
+static VALUE
+noop_start(ParseInfo pi) {
+    return Qnil;
+}
+
+static void
+noop_end(ParseInfo pi) {
+}
+
+static void
+noop_add_value(ParseInfo pi, VALUE val) {
+}
+
+static void
+noop_add_cstr(ParseInfo pi, const char *str, size_t len) {
+}
+
+static void
+noop_add_fix(ParseInfo pi, int64_t num) {
+}
+
+static void
+noop_hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+}
+
+static void
+noop_hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
+}
+
+static void
+noop_hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
+}
+
+static void
+noop_array_append_cstr(ParseInfo pi, const char *str, size_t len) {
+}
+
+static void
+noop_array_append_fix(ParseInfo pi, int64_t num) {
+}
+
+static void
+noop_array_append_value(ParseInfo pi, VALUE value) {
+}
 
 static void
 add_value(ParseInfo pi, VALUE val) {
@@ -167,36 +211,42 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     }
     pi.cbc = (void*)handler;
 
-    pi.start_hash = respond_to(handler, oj_hash_start_id) ? start_hash : 0;
-    pi.end_hash = respond_to(handler, oj_hash_end_id) ? end_hash : 0;
-    pi.start_array = respond_to(handler, oj_array_start_id) ? start_array : 0;
-    pi.end_array = respond_to(handler, oj_array_end_id) ? end_array : 0;
+    pi.start_hash = respond_to(handler, oj_hash_start_id) ? start_hash : noop_start;
+    pi.end_hash = respond_to(handler, oj_hash_end_id) ? end_hash : noop_end;
+    pi.start_array = respond_to(handler, oj_array_start_id) ? start_array : noop_start;
+    pi.end_array = respond_to(handler, oj_array_end_id) ? end_array : noop_end;
     if (respond_to(handler, oj_hash_set_id)) {
 	pi.hash_set_value = hash_set_value;
 	pi.hash_set_cstr = hash_set_cstr;
 	pi.hash_set_fix = hash_set_fix;
+	pi.expect_value = 1;
     } else {
-	pi.hash_set_value = 0;
-	pi.hash_set_cstr = 0;
-	pi.hash_set_fix = 0;
+	pi.hash_set_value = noop_hash_set_value;
+	pi.hash_set_cstr = noop_hash_set_cstr;
+	pi.hash_set_fix = noop_hash_set_fix;
+	pi.expect_value = 0;
     }
     if (respond_to(handler, oj_array_append_id)) {
 	pi.array_append_value = array_append_value;
 	pi.array_append_cstr = array_append_cstr;
 	pi.array_append_fix = array_append_fix;
+	pi.expect_value = 1;
     } else {
-	pi.array_append_value = 0;
-	pi.array_append_cstr = 0;
-	pi.array_append_fix = 0;
+	pi.array_append_value = noop_array_append_value;
+	pi.array_append_cstr = noop_array_append_cstr;
+	pi.array_append_fix = noop_array_append_fix;
+	pi.expect_value = 0;
     }
     if (respond_to(handler, oj_add_value_id)) {
 	pi.add_cstr = add_cstr;
 	pi.add_fix = add_fix;
 	pi.add_value = add_value;
+	pi.expect_value = 1;
     } else {
-	pi.add_cstr = 0;
-	pi.add_fix = 0;
-	pi.add_value = 0;
+	pi.add_cstr = noop_add_cstr;
+	pi.add_fix = noop_add_fix;
+	pi.add_value = noop_add_value;
+	pi.expect_value = 0;
     }
     if (rb_type(input) == T_STRING) {
 	pi.json = StringValuePtr(input);

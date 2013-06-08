@@ -48,27 +48,63 @@ hash_key(ParseInfo pi, const char *key, size_t klen) {
     return rkey;
 }
 
+static int
+hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str, size_t len) {
+    if (2 == klen) {
+	switch (key[1]) {
+	case 'o':
+	    {
+		VALUE	clas = oj_name2class(pi, str, len, Yes == pi->options.auto_define);
+
+		if (Qundef != clas) {
+		    parent->val = rb_obj_alloc(clas);
+		}
+	    }
+	    break;
+	default:
+	    return 0;
+	    break;
+	}
+	return 1; // handled
+    } else if (3 <= len && '#' == key[1]) {
+	// TBD
+    }
+    return 0;
+}
+
 static void
 hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
     Val	parent = stack_peek(&pi->stack);
 
-    if (Qnil == parent->val) {
-	// TBD if '^' == *key ...
-	parent->val = rb_hash_new();
-    }
-    // TBD switch on rb_type
-    if (1) {
-	VALUE	rstr = rb_str_new(str, len);
-	VALUE	rkey = rb_str_new(key, klen);
+ WHICH_TYPE:
+    switch (rb_type(parent->val)) {
+    case T_NIL:
+	if ('^' != *key || !hat_cstr(pi, parent, key, klen, str, len)) {
+	    parent->val = rb_hash_new();
+	    goto WHICH_TYPE;
+	}
+	break;
+    case T_HASH:
+	{
+	    VALUE	rstr = rb_str_new(str, len);
+	    VALUE	rkey = rb_str_new(key, klen);
 
 #if HAS_ENCODING_SUPPORT
-	rb_enc_associate(rstr, oj_utf8_encoding);
-	rb_enc_associate(rkey, oj_utf8_encoding);
+	    rb_enc_associate(rstr, oj_utf8_encoding);
+	    rb_enc_associate(rkey, oj_utf8_encoding);
 #endif
-	if (Yes == pi->options.sym_key) {
-	    rkey = rb_str_intern(rkey);
+	    if (Yes == pi->options.sym_key) {
+		rkey = rb_str_intern(rkey);
+	    }
+	    rb_hash_aset(parent->val, rkey, rstr);
 	}
-	rb_hash_aset(parent->val, rkey, rstr);
+	break;
+    case T_OBJECT:
+	printf("*** an object\n");
+	break;
+    default:
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
+	return;
     }
 }
 

@@ -279,13 +279,14 @@ class ObjectJuice < ::Test::Unit::TestCase
     assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
 
-  def test_json_object_object
-    obj = Jeez.new(true, 58)
-    dump_and_load(obj, false)
-  end
-
   def test_json_module_object
     obj = One::Two::Three::Deep.new()
+    dump_and_load(obj, true)
+  end
+
+=begin
+  def test_json_object_object
+    obj = Jeez.new(true, 58)
     dump_and_load(obj, false)
   end
 
@@ -330,6 +331,7 @@ class ObjectJuice < ::Test::Unit::TestCase
     obj = Oj.object_load(json)
     assert_equal(expected, obj)
   end
+=end
 
   def dump_and_load(obj, trace=false)
     json = Oj.dump(obj, :indent => 2, :mode => :object)

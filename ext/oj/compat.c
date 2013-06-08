@@ -74,12 +74,6 @@ end_hash(struct _ParseInfo *pi) {
 	clas = oj_name2class(pi, parent->classname, parent->clen, 0);
 	if (Qundef != clas) { // else an error
 	    parent->val = rb_funcall(clas, oj_json_create_id, 1, parent->val);
-	} else {
-	    char	buf[1024];
-
-	    memcpy(buf, parent->classname, parent->clen);
-	    buf[parent->clen] = '\0';
-	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "class %s is not defined", buf);
 	}
 	if (parent->classname < pi->json || pi->cur < parent->classname) {
 	    xfree((char*)parent->classname);

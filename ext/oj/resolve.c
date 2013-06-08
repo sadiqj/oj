@@ -83,7 +83,15 @@ resolve_classpath(ParseInfo pi, const char *name, size_t len, int auto_define) {
 	}
     }
     *s = '\0';
-    return resolve_classname(clas, class_name, auto_define);
+    if (Qundef == (clas = resolve_classname(clas, class_name, auto_define))) {
+	if (sizeof(class_name) - 1 < len) {
+	    len = sizeof(class_name) - 1;
+	}
+	memcpy(class_name, name, len);
+	class_name[len] = '\0';
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "class %s is not defined", class_name);
+    }
+    return clas;
 }
 
 VALUE
@@ -105,6 +113,5 @@ oj_name2class(ParseInfo pi, const char *name, size_t len, int auto_define) {
 #if SAFE_CACHE
     pthread_mutex_unlock(&oj_cache_mutex);
 #endif
-
     return clas;
 }

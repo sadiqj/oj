@@ -52,8 +52,8 @@ static int
 hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str, size_t len) {
     if (2 == klen) {
 	switch (key[1]) {
-	case 'o':
-	    {
+	case 'o': // object
+	    {	// name2class sets and error if the class is not found or created
 		VALUE	clas = oj_name2class(pi, str, len, Yes == pi->options.auto_define);
 
 		if (Qundef != clas) {
@@ -61,12 +61,17 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 		}
 	    }
 	    break;
+	case 'c': // class
+	case 't': // time as a float TBD is a float callback needed
+	case 'u': // ruby struct
 	default:
 	    return 0;
 	    break;
 	}
 	return 1; // handled
     } else if (3 <= len && '#' == key[1]) {
+	//case 'i': // id in a circular reference
+	//case 'r': // ref in a circular reference
 	// TBD
     }
     return 0;

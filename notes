@@ -3,6 +3,10 @@
 ^c^d hide subtree
 ^c^s show subtree
 
+- parser
+ - callbacks
+  - add float callback
+
 - object parser
  - put Qnil in place of Hash for hash_start
   - on end fill in correct type if still nil

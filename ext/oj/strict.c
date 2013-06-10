@@ -37,6 +37,9 @@
 #include "err.h"
 #include "parse.h"
 
+// Workaround in case INFINITY is not defined in math.h or if the OS is CentOS
+#define OJ_INFINITY (1.0/0.0)
+
 static void
 noop_end(struct _ParseInfo *pi) {
 }
@@ -57,8 +60,8 @@ add_cstr(ParseInfo pi, const char *str, size_t len) {
 }
 
 static void
-add_fix(ParseInfo pi, int64_t num) {
-    pi->stack.head->val = LONG2NUM(num);
+add_num(ParseInfo pi, NumInfo ni) {
+    pi->stack.head->val = oj_num_as_value(ni);
 }
 
 static VALUE
@@ -90,8 +93,8 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 }
 
 static void
-hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
-    rb_hash_aset(stack_peek(&pi->stack)->val, hash_key(pi, key, klen), LONG2NUM(num));
+hash_set_num(struct _ParseInfo *pi, const char *key, size_t klen, NumInfo ni) {
+    rb_hash_aset(stack_peek(&pi->stack)->val, hash_key(pi, key, klen), oj_num_as_value(ni));
 }
 
 static void
@@ -115,8 +118,8 @@ array_append_cstr(ParseInfo pi, const char *str, size_t len) {
 }
 
 static void
-array_append_fix(ParseInfo pi, int64_t num) {
-    rb_ary_push(stack_peek(&pi->stack)->val, LONG2NUM(num));
+array_append_num(ParseInfo pi, NumInfo ni) {
+    rb_ary_push(stack_peek(&pi->stack)->val, oj_num_as_value(ni));
 }
 
 static void
@@ -129,15 +132,15 @@ oj_set_strict_callbacks(ParseInfo pi) {
     pi->start_hash = start_hash;
     pi->end_hash = noop_end;
     pi->hash_set_cstr = hash_set_cstr;
-    pi->hash_set_fix = hash_set_fix;
+    pi->hash_set_num = hash_set_num;
     pi->hash_set_value = hash_set_value;
     pi->start_array = start_array;
     pi->end_array = noop_end;
     pi->array_append_cstr = array_append_cstr;
-    pi->array_append_fix = array_append_fix;
+    pi->array_append_num = array_append_num;
     pi->array_append_value = array_append_value;
     pi->add_cstr = add_cstr;
-    pi->add_fix = add_fix;
+    pi->add_num = add_num;
     pi->add_value = add_value;
     pi->expect_value = 1;
 }

@@ -47,6 +47,9 @@
 #else
 #define NUM_MAX (FIXNUM_MAX >> 8)
 #endif
+#define EXP_MAX	1023
+#define I64_MAX	0x7FFFFFFFFFFFFFFFLL
+#define DEC_MAX	14
 
 static void
 next_non_white(ParseInfo pi) {
@@ -370,20 +373,24 @@ read_str(ParseInfo pi) {
 
 static void
 read_num(ParseInfo pi) {
-    const char	*start = pi->cur;
-    int64_t	n = 0;
-    long	a = 0;
-    long	div = 1;
-    long	e = 0;
-    int		neg = 0;
-    int		eneg = 0;
-    int		big = 0;
-    VALUE	rnum = Qnil;
-    Val		parent = stack_peek(&pi->stack);
+    struct _NumInfo	ni;
+    Val			parent = stack_peek(&pi->stack);
+    int			zero_cnt = 0;
+
+    ni.str = pi->cur;
+    ni.i = 0;
+    ni.num = 0;
+    ni.div = 1;
+    ni.len = 0;
+    ni.exp = 0;
+    ni.dec_cnt = 0;
+    ni.big = 0;
+    ni.infinity = 0;
+    ni.neg = 0;
 
     if ('-' == *pi->cur) {
 	pi->cur++;
-	neg = 1;
+	ni.neg = 1;
     } else if ('+' == *pi->cur) {
 	pi->cur++;
     }
@@ -393,33 +400,48 @@ read_num(ParseInfo pi) {
 	    return;
 	}
 	pi->cur += 8;
-	if (pi->expect_value) {
-	    rnum = (neg) ? rb_float_new(-OJ_INFINITY) : rb_float_new(OJ_INFINITY);
-	    add_value(pi, rnum);
-	}
+	ni.infinity = 1;
 	return;
     }
     for (; '0' <= *pi->cur && *pi->cur <= '9'; pi->cur++) {
-	if (big) {
-	    big++;
+	ni.dec_cnt++;
+	if (ni.big) {
+	    ni.big++;
 	} else {
-	    n = n * 10 + (*pi->cur - '0');
-	    if (NUM_MAX <= n) {
-		big = 1;
+	    int	d = (*pi->cur - '0');
+
+	    if (0 == d) {
+		zero_cnt++;
+	    } else {
+		zero_cnt = 0;
+	    }
+	    ni.i = ni.i * 10 + d;
+	    if (I64_MAX <= ni.i || DEC_MAX < ni.dec_cnt - zero_cnt) {
+		ni.big = 1;
 	    }
 	}
     }
     if ('.' == *pi->cur) {
 	pi->cur++;
 	for (; '0' <= *pi->cur && *pi->cur <= '9'; pi->cur++) {
-	    a = a * 10 + (*pi->cur - '0');
-	    div *= 10;
-	    if (NUM_MAX <= div) {
-		big = 1;
+	    int	d = (*pi->cur - '0');
+
+	    if (0 == d) {
+		zero_cnt++;
+	    } else {
+		zero_cnt = 0;
+	    }
+	    ni.dec_cnt++;
+	    ni.num = ni.num * 10 + d;
+	    ni.div *= 10;
+	    if (I64_MAX <= ni.div || DEC_MAX < ni.dec_cnt - zero_cnt) {
+		ni.big = 1;
 	    }
 	}
     }
     if ('e' == *pi->cur || 'E' == *pi->cur) {
+	int	eneg = 0;
+
 	pi->cur++;
 	if ('-' == *pi->cur) {
 	    pi->cur++;
@@ -428,102 +450,40 @@ read_num(ParseInfo pi) {
 	    pi->cur++;
 	}
 	for (; '0' <= *pi->cur && *pi->cur <= '9'; pi->cur++) {
-	    e = e * 10 + (*pi->cur - '0');
-	    if (NUM_MAX <= e) {
-		big = 1;
+	    ni.exp = ni.exp * 10 + (*pi->cur - '0');
+	    if (EXP_MAX <= ni.exp) {
+		ni.big = 1;
 	    }
+	}
+	if (eneg) {
+	    ni.exp = -ni.exp;
 	}
     }
-    if (pi->expect_value) { // short cut
-	if (Yes == pi->options.bigdec_load) {
-	    big = 1;
-	}
-	if (0 == e && 0 == a && 1 == div) {
-	    if (big) {
-		int	len = pi->cur - start;
-		
-		if (256 > len) {
-		    char	buf[256];
-
-		    memcpy(buf, start, len);
-		    buf[len] = '\0';
-		    rnum = rb_cstr_to_inum(buf, 10, 0);
-		} else {
-		    char	*buf = ALLOC_N(char, len);
-
-		    memcpy(buf, start, len);
-		    buf[len] = '\0';
-		    rnum = rb_cstr_to_inum(buf, 10, 0);
-		    xfree(buf);
-		}
-	    } else {
-		if (neg) {
-		    n = -n;
-		}
-		if (0 == parent) {
-		    pi->add_fix(pi, n);
-		} else {
-		    switch (parent->next) {
-		    case NEXT_ARRAY_NEW:
-		    case NEXT_ARRAY_ELEMENT:
-			pi->array_append_fix(pi, n);
-			parent->next = NEXT_ARRAY_COMMA;
-			break;
-		    case NEXT_HASH_VALUE:
-			pi->hash_set_fix(pi, parent->key, parent->klen, n);
-			if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
-			    xfree((char*)parent->key);
-			    parent->key = 0;
-			}
-			parent->next = NEXT_HASH_COMMA;
-			break;
-		    default:
-			oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s", oj_stack_next_string(parent->next));
-			break;
-		    }
-		}
-		return;
-	    }
-	} else { /* decimal */
-	    if (big) {
-		rnum = rb_funcall(oj_bigdecimal_class, oj_new_id, 1, rb_str_new(start, pi->cur - start));
-	    } else {
-		double	d = (double)n + (double)a / (double)div;
-
-		if (neg) {
-		    d = -d;
-		}
-		if (1 < big) {
-		    e += big - 1;
-		}
-		if (0 != e) {
-		    if (eneg) {
-			e = -e;
-		    }
-		    d *= pow(10.0, e);
-		}
-		rnum = rb_float_new(d);
-	    }
-	}
-	add_value(pi, rnum);
+    ni.dec_cnt -= zero_cnt;
+    ni.len = pi->cur - ni.str;
+    if (Yes == pi->options.bigdec_load) {
+	ni.big = 1;
+    }
+    if (0 == parent) {
+	pi->add_num(pi, &ni);
     } else {
-	if (0 != parent) {
-	    switch (parent->next) {
-	    case NEXT_ARRAY_NEW:
-	    case NEXT_ARRAY_ELEMENT:
-		parent->next = NEXT_ARRAY_COMMA;
-		break;
-	    case NEXT_HASH_VALUE:
-		if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
-		    xfree((char*)parent->key);
-		    parent->key = 0;
-		}
-		parent->next = NEXT_HASH_COMMA;
-		break;
-	    default:
-		oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s", oj_stack_next_string(parent->next));
-		break;
+	switch (parent->next) {
+	case NEXT_ARRAY_NEW:
+	case NEXT_ARRAY_ELEMENT:
+	    pi->array_append_num(pi, &ni);
+	    parent->next = NEXT_ARRAY_COMMA;
+	    break;
+	case NEXT_HASH_VALUE:
+	    pi->hash_set_num(pi, parent->key, parent->klen, &ni);
+	    if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
+		xfree((char*)parent->key);
+		parent->key = 0;
 	    }
+	    parent->next = NEXT_HASH_COMMA;
+	    break;
+	default:
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "expected %s", oj_stack_next_string(parent->next));
+	    break;
 	}
     }
 }
@@ -668,6 +628,57 @@ oj_parse2(ParseInfo pi) {
 	    return;
 	}
     }
+}
+
+VALUE
+oj_num_as_value(NumInfo ni) {
+    VALUE	rnum = Qnil;
+
+    if (ni->infinity) {
+	if (ni->neg) {
+	    rnum = rb_float_new(-OJ_INFINITY);
+	} else {
+	    rnum = rb_float_new(OJ_INFINITY);
+	}
+    } else if (1 == ni->div && 0 == ni->exp) { // fixnum
+	if (ni->big) {
+	    if (256 > ni->len) {
+		char	buf[256];
+
+		memcpy(buf, ni->str, ni->len);
+		buf[ni->len] = '\0';
+		rnum = rb_cstr_to_inum(buf, 10, 0);
+	    } else {
+		char	*buf = ALLOC_N(char, ni->len + 1);
+
+		memcpy(buf, ni->str, ni->len);
+		buf[ni->len] = '\0';
+		rnum = rb_cstr_to_inum(buf, 10, 0);
+		xfree(buf);
+	    }
+	} else {
+	    if (ni->neg) {
+		rnum = LONG2NUM(-ni->i);
+	    } else {
+		rnum = LONG2NUM(ni->i);
+	    }
+	}
+    } else { // decimal
+	if (ni->big) {
+	    rnum = rb_funcall(oj_bigdecimal_class, oj_new_id, 1, rb_str_new(ni->str, ni->len));
+	} else {
+	    double	d = (double)ni->i + (double)ni->num / (double)ni->div;
+
+	    if (ni->neg) {
+		d = -d;
+	    }
+	    if (0 != ni->exp) {
+		d *= pow(10.0, ni->exp);
+	    }
+	    rnum = rb_float_new(d);
+	}
+    }
+    return rnum;
 }
 
 void

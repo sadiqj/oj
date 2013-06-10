@@ -62,7 +62,10 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    }
 	    break;
 	case 'c': // class
+	    parent->val = oj_name2class(pi, str, len, Yes == pi->options.auto_define);
+	    break;
 	case 't': // time as a float TBD is a float callback needed
+	    // TBD parse time
 	case 'u': // ruby struct
 	default:
 	    return 0;
@@ -114,14 +117,14 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 }
 
 static void
-hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
+hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
     Val	parent = stack_peek(&pi->stack);
 
     // TBD if '^' == *key ...
     if (Qnil == parent->val) {
 	parent->val = rb_hash_new();
     }
-    rb_hash_aset(parent->val, hash_key(pi, key, klen), LONG2NUM(num));
+    rb_hash_aset(parent->val, hash_key(pi, key, klen), oj_num_as_value(ni));
 }
 
 static void
@@ -177,7 +180,7 @@ oj_object_parse(int argc, VALUE *argv, VALUE self) {
     pi.end_hash = end_hash;
     pi.start_hash = start_hash;
     pi.hash_set_cstr = hash_set_cstr;
-    pi.hash_set_fix = hash_set_fix;
+    pi.hash_set_num = hash_set_num;
     pi.hash_set_value = hash_set_value;
 
     return oj_pi_parse(argc, argv, &pi);

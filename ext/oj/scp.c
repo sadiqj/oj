@@ -72,7 +72,7 @@ noop_add_cstr(ParseInfo pi, const char *str, size_t len) {
 }
 
 static void
-noop_add_fix(ParseInfo pi, int64_t num) {
+noop_add_num(ParseInfo pi, NumInfo ni) {
 }
 
 static void
@@ -80,7 +80,7 @@ noop_hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, 
 }
 
 static void
-noop_hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
+noop_hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
 }
 
 static void
@@ -92,7 +92,7 @@ noop_array_append_cstr(ParseInfo pi, const char *str, size_t len) {
 }
 
 static void
-noop_array_append_fix(ParseInfo pi, int64_t num) {
+noop_array_append_num(ParseInfo pi, NumInfo ni) {
 }
 
 static void
@@ -115,8 +115,8 @@ add_cstr(ParseInfo pi, const char *str, size_t len) {
 }
 
 static void
-add_fix(ParseInfo pi, int64_t num) {
-     rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, LONG2NUM(num));
+add_num(ParseInfo pi, NumInfo ni) {
+    rb_funcall((VALUE)pi->cbc, oj_add_value_id, 1, oj_num_as_value(ni));
 }
 
 static VALUE
@@ -163,8 +163,8 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 }
 
 static void
-hash_set_fix(ParseInfo pi, const char *key, size_t klen, int64_t num) {
-    rb_funcall((VALUE)pi->cbc, oj_hash_set_id, 3, stack_peek(&pi->stack)->val, hash_key(pi, key, klen), LONG2NUM(num));
+hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
+    rb_funcall((VALUE)pi->cbc, oj_hash_set_id, 3, stack_peek(&pi->stack)->val, hash_key(pi, key, klen), oj_num_as_value(ni));
 }
 
 static void
@@ -183,8 +183,8 @@ array_append_cstr(ParseInfo pi, const char *str, size_t len) {
 }
 
 static void
-array_append_fix(ParseInfo pi, int64_t num) {
-    rb_funcall((VALUE)pi->cbc, oj_array_append_id, 2, stack_peek(&pi->stack)->val, LONG2NUM(num));
+array_append_num(ParseInfo pi, NumInfo ni) {
+    rb_funcall((VALUE)pi->cbc, oj_array_append_id, 2, stack_peek(&pi->stack)->val, oj_num_as_value(ni));
 }
 
 static void
@@ -218,33 +218,33 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     if (respond_to(handler, oj_hash_set_id)) {
 	pi.hash_set_value = hash_set_value;
 	pi.hash_set_cstr = hash_set_cstr;
-	pi.hash_set_fix = hash_set_fix;
+	pi.hash_set_num = hash_set_num;
 	pi.expect_value = 1;
     } else {
 	pi.hash_set_value = noop_hash_set_value;
 	pi.hash_set_cstr = noop_hash_set_cstr;
-	pi.hash_set_fix = noop_hash_set_fix;
+	pi.hash_set_num = noop_hash_set_num;
 	pi.expect_value = 0;
     }
     if (respond_to(handler, oj_array_append_id)) {
 	pi.array_append_value = array_append_value;
 	pi.array_append_cstr = array_append_cstr;
-	pi.array_append_fix = array_append_fix;
+	pi.array_append_num = array_append_num;
 	pi.expect_value = 1;
     } else {
 	pi.array_append_value = noop_array_append_value;
 	pi.array_append_cstr = noop_array_append_cstr;
-	pi.array_append_fix = noop_array_append_fix;
+	pi.array_append_num = noop_array_append_num;
 	pi.expect_value = 0;
     }
     if (respond_to(handler, oj_add_value_id)) {
 	pi.add_cstr = add_cstr;
-	pi.add_fix = add_fix;
+	pi.add_num = add_num;
 	pi.add_value = add_value;
 	pi.expect_value = 1;
     } else {
 	pi.add_cstr = noop_add_cstr;
-	pi.add_fix = noop_add_fix;
+	pi.add_num = noop_add_num;
 	pi.add_value = noop_add_value;
 	pi.expect_value = 0;
     }

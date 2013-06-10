@@ -35,6 +35,19 @@
 #include "oj.h"
 #include "val_stack.h"
 
+typedef struct _NumInfo {
+    int64_t	i;
+    int64_t	num;
+    int64_t	div;
+    const char	*str;
+    size_t	len;
+    long	exp;
+    int		dec_cnt;
+    int		big;
+    int		infinity;
+    int		neg;
+} *NumInfo;
+
 typedef struct _ParseInfo {
     const char		*json;
     const char		*cur;
@@ -46,23 +59,24 @@ typedef struct _ParseInfo {
     VALUE		(*start_hash)(struct _ParseInfo *pi);
     void		(*end_hash)(struct _ParseInfo *pi);
     void		(*hash_set_cstr)(struct _ParseInfo *pi, const char *key, size_t klen, const char *str, size_t len);
-    void		(*hash_set_fix)(struct _ParseInfo *pi, const char *key, size_t klen, int64_t num);
+    void		(*hash_set_num)(struct _ParseInfo *pi, const char *key, size_t klen, NumInfo ni);
     void		(*hash_set_value)(struct _ParseInfo *pi, const char *key, size_t klen, VALUE value);
 
     VALUE		(*start_array)(struct _ParseInfo *pi);
     void		(*end_array)(struct _ParseInfo *pi);
     void		(*array_append_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
-    void		(*array_append_fix)(struct _ParseInfo *pi, int64_t num);
+    void		(*array_append_num)(struct _ParseInfo *pi, NumInfo ni);
     void		(*array_append_value)(struct _ParseInfo *pi, VALUE value);
 
     void		(*add_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
-    void		(*add_fix)(struct _ParseInfo *pi, int64_t num);
+    void		(*add_num)(struct _ParseInfo *pi, NumInfo ni);
     void		(*add_value)(struct _ParseInfo *pi, VALUE val);
 } *ParseInfo;
 
 extern void	oj_parse2(ParseInfo pi);
 extern void	oj_set_error_at(ParseInfo pi, VALUE err_clas, const char* file, int line, const char *format, ...);
 extern VALUE	oj_pi_parse(int argc, VALUE *argv, ParseInfo pi);
+extern VALUE	oj_num_as_value(NumInfo ni);
 
 extern void	oj_set_strict_callbacks(ParseInfo pi);
 

@@ -5,6 +5,16 @@
 
 - parser
  - callbacks
+  - add_num(pi, NumInfo)
+   - NumInfo
+    - integer int64_t
+    - mantissa or numerator
+    - divisor
+    - exponent
+    - decimal_count
+    - big
+    - str
+    - len
   - add float callback
 
 - object parser

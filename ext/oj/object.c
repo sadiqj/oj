@@ -72,13 +72,39 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    break;
 	}
 	return 1; // handled
-    } else if (3 <= len && '#' == key[1]) {
+    } else if (3 <= klen && '#' == key[1]) {
 	//case 'i': // id in a circular reference
 	//case 'r': // ref in a circular reference
 	// TBD
     }
     return 0;
 }
+
+static int
+hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
+    if (2 == klen) {
+	switch (key[1]) {
+	case 't': // time as a float TBD is a float callback needed
+#if HAS_NANO_TIME
+	    parent->val = rb_time_nano_new(ni->i, (long)(ni->num * 1000000000LL / ni->div));
+#else
+	    parent->val = rb_time_new(ni->i, (ni->num * 1000000LL / ni->div));
+#endif
+	    break;
+	default:
+	    return 0;
+	    break;
+	}
+	return 1; // handled
+    } else if (3 <= klen && '#' == key[1]) {
+	//case 'i': // id in a circular reference
+	//case 'r': // ref in a circular reference
+	// TBD
+    }
+    return 0;
+}
+
+
 
 static void
 hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
@@ -120,11 +146,34 @@ static void
 hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
     Val	parent = stack_peek(&pi->stack);
 
-    // TBD if '^' == *key ...
-    if (Qnil == parent->val) {
-	parent->val = rb_hash_new();
+ WHICH_TYPE:
+    switch (rb_type(parent->val)) {
+    case T_NIL:
+	if ('^' != *key || !hat_num(pi, parent, key, klen, ni)) {
+	    parent->val = rb_hash_new();
+	    goto WHICH_TYPE;
+	}
+	break;
+    case T_HASH:
+	{
+	    VALUE	rkey = rb_str_new(key, klen);
+
+#if HAS_ENCODING_SUPPORT
+	    rb_enc_associate(rkey, oj_utf8_encoding);
+#endif
+	    if (Yes == pi->options.sym_key) {
+		rkey = rb_str_intern(rkey);
+	    }
+	    rb_hash_aset(parent->val, rkey, oj_num_as_value(ni));
+	}
+	break;
+    case T_OBJECT:
+	printf("*** an object\n");
+	break;
+    default:
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
+	return;
     }
-    rb_hash_aset(parent->val, hash_key(pi, key, klen), oj_num_as_value(ni));
 }
 
 static void

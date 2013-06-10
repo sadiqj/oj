@@ -281,15 +281,21 @@ class ObjectJuice < ::Test::Unit::TestCase
 
   def test_json_module_object
     obj = One::Two::Three::Deep.new()
-    dump_and_load(obj, true)
+    dump_and_load(obj, false)
   end
 
-=begin
   def test_json_object_object
     obj = Jeez.new(true, 58)
     dump_and_load(obj, false)
   end
 
+  def test_time
+    t = Time.now()
+    dump_and_load(t, true)
+  end
+
+
+=begin
   def test_json_object_create_id
     expected = Jeez.new(true, 58)
     json = Oj.dump(expected, :indent => 2, :mode => :object)

@@ -99,7 +99,7 @@ hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
 #if HAS_NANO_TIME
 		parent->val = rb_time_nano_new(ni->i, (long)nsec);
 #else
-		parent->val = rb_time_new(ni->i, (long(nsec / 1000)));
+		parent->val = rb_time_new(ni->i, (long)(nsec / 1000));
 #endif
 	    }
 	    break;

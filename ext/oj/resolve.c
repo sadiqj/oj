@@ -105,7 +105,7 @@ oj_name2class(ParseInfo pi, const char *name, size_t len, int auto_define) {
 #if SAFE_CACHE
     pthread_mutex_lock(&oj_cache_mutex);
 #endif
-    if (Qundef == (clas = oj_hash_get(name, len, &slot))) {
+    if (Qnil == (clas = oj_class_hash_get(name, len, &slot))) {
 	if (Qundef != (clas = resolve_classpath(pi, name, len, auto_define))) {
 	    *slot = clas;
 	}

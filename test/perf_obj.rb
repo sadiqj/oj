@@ -87,6 +87,7 @@ if do_load
   perf = Perf.new()
   perf.add('Ox', 'load') { Ox.load($xml, :mode => :object) }
   perf.add('Oj', 'load') { Oj.load($json) }
+  perf.add('Oj.object', 'load') { Oj.object_load($json) }
   perf.add('Marshal', 'load') { Marshal.load($mars) }
   perf.run($iter)
 end

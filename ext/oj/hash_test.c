@@ -459,7 +459,7 @@ perf() {
     start = micro_time();
     for (i = iter; 0 < i; i--) {
 	for (d = data; 0 != d->str; d++) {
-	    v = oj_hash_get(d->str, d->len, &slot);
+	    v = oj_class_hash_get(d->str, d->len, &slot);
 	    if (Qundef == v) {
 		if (0 != slot) {
 		    v = ID2SYM(rb_intern(d->str));
@@ -481,7 +481,7 @@ oj_hash_test() {
     oj_hash_init();
     for (d = data; 0 != d->str; d++) {
 	/*printf("*** hash_get on %s\n", *d);*/
-	v = oj_hash_get(d->str, d->len, &slot);
+	v = oj_class_hash_get(d->str, d->len, &slot);
 	if (Qundef == v) {
 	    if (0 == slot) {
 		/*printf("*** failed to get a slot for %s\n", *d); */

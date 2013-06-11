@@ -34,6 +34,7 @@
 #include "err.h"
 #include "parse.h"
 #include "resolve.h"
+#include "hash.h"
 
 static VALUE
 hash_key(ParseInfo pi, const char *key, size_t klen) {
@@ -85,11 +86,22 @@ hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
     if (2 == klen) {
 	switch (key[1]) {
 	case 't': // time as a float TBD is a float callback needed
+	    {
+		int64_t	nsec = ni->num * 1000000000LL / ni->div;
+
+		if (ni->neg) {
+		    ni->i = -ni->i;
+		    if (0 < nsec) {
+			ni->i--;
+			nsec = 1000000000LL - nsec;
+		    }
+		}
 #if HAS_NANO_TIME
-	    parent->val = rb_time_nano_new(ni->i, (long)(ni->num * 1000000000LL / ni->div));
+		parent->val = rb_time_nano_new(ni->i, (long)nsec);
 #else
-	    parent->val = rb_time_new(ni->i, (ni->num * 1000000LL / ni->div));
+		parent->val = rb_time_new(ni->i, (long(nsec / 1000)));
 #endif
+	    }
 	    break;
 	default:
 	    return 0;
@@ -104,6 +116,59 @@ hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
     return 0;
 }
 
+static int
+hat_value(ParseInfo pi, Val parent, const char *key, size_t klen, VALUE value) {
+    if (3 <= klen && '#' == key[1]) {
+	//case 'i': // id in a circular reference
+	//case 'r': // ref in a circular reference
+	// TBD
+    }
+    return 0;
+}
+
+static void
+set_obj_ivar(VALUE obj, const char *key, size_t klen, VALUE value) {
+    ID	var_id;
+    ID	*slot;
+
+#if SAFE_CACHE
+    pthread_mutex_lock(&oj_cache_mutex);
+#endif
+    if (0 == (var_id = oj_intern_hash_get(key, klen, &slot))) {
+	char	attr[256];
+
+	if (sizeof(attr) <= klen + 2) {
+	    char	*buf = ALLOC_N(char, klen + 2);
+
+	    if ('~' == *key) {
+		strncpy(buf, key + 1, klen - 1);
+		buf[klen - 1] = '\0';
+	    } else {
+		*buf = '@';
+		strncpy(buf + 1, key, klen);
+		buf[klen + 1] = '\0';
+	    }
+	    var_id = rb_intern(buf);
+	    xfree(buf);
+	} else {
+	    if ('~' == *key) {
+		strncpy(attr, key + 1, klen - 1);
+		attr[klen - 1] = '\0';
+	    } else {
+		*attr = '@';
+		strncpy(attr + 1, key, klen);
+		attr[klen + 1] = '\0';
+	    }
+	    var_id = rb_intern(attr);
+	    *slot = var_id;
+	}
+    }
+#if SAFE_CACHE
+    pthread_mutex_unlock(&oj_cache_mutex);
+#endif
+
+    rb_ivar_set(obj, var_id, value);
+}
 
 
 static void
@@ -134,7 +199,14 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 	}
 	break;
     case T_OBJECT:
-	printf("*** an object\n");
+	{
+	    VALUE	rstr = rb_str_new(str, len);
+
+#if HAS_ENCODING_SUPPORT
+	    rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+	    set_obj_ivar(parent->val, key, klen, rstr);
+	}
 	break;
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
@@ -155,20 +227,10 @@ hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
 	}
 	break;
     case T_HASH:
-	{
-	    VALUE	rkey = rb_str_new(key, klen);
-
-#if HAS_ENCODING_SUPPORT
-	    rb_enc_associate(rkey, oj_utf8_encoding);
-#endif
-	    if (Yes == pi->options.sym_key) {
-		rkey = rb_str_intern(rkey);
-	    }
-	    rb_hash_aset(parent->val, rkey, oj_num_as_value(ni));
-	}
+	rb_hash_aset(parent->val, hash_key(pi, key, klen), oj_num_as_value(ni));
 	break;
     case T_OBJECT:
-	printf("*** an object\n");
+	set_obj_ivar(parent->val, key, klen, oj_num_as_value(ni));
 	break;
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
@@ -180,11 +242,24 @@ static void
 hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
     Val	parent = stack_peek(&pi->stack);
 
-    // TBD if '^' == *key ...
-    if (Qnil == parent->val) {
-	parent->val = rb_hash_new();
+ WHICH_TYPE:
+    switch (rb_type(parent->val)) {
+    case T_NIL:
+	if ('^' != *key || !hat_value(pi, parent, key, klen, value)) {
+	    parent->val = rb_hash_new();
+	    goto WHICH_TYPE;
+	}
+	break;
+    case T_HASH:
+	rb_hash_aset(parent->val, hash_key(pi, key, klen), value);
+	break;
+    case T_OBJECT:
+	set_obj_ivar(parent->val, key, klen, value);
+	break;
+    default:
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
+	return;
     }
-    rb_hash_aset(parent->val, hash_key(pi, key, klen), value);
 }
 
 

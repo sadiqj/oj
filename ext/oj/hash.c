@@ -30,8 +30,8 @@
 
 #include "hash.h"
 
-#define  HASH_SLOT_CNT	1024
 #define HASH_MASK	0x000003FF
+#define  HASH_SLOT_CNT	1024
 
 typedef struct _KeyVal {
     struct _KeyVal	*next;
@@ -44,7 +44,8 @@ struct _Hash {
     struct _KeyVal	slots[HASH_SLOT_CNT];
 };
 
-static struct _Hash	class_hash;
+struct _Hash	class_hash;
+struct _Hash	intern_hash;
 
 // almost the Murmur hash algorithm
 #define M 0x5bd1e995
@@ -87,13 +88,14 @@ hash_calc(const uint8_t *key, size_t len) {
 void
 oj_hash_init() {
     memset(class_hash.slots, 0, sizeof(class_hash.slots));
+    memset(intern_hash.slots, 0, sizeof(intern_hash.slots));
 }
 
 // if slotp is 0 then just lookup
-VALUE
-oj_hash_get(const char *key, size_t len, VALUE **slotp) {
+static VALUE
+hash_get(Hash hash, const char *key, size_t len, VALUE **slotp, VALUE def_value) {
     uint32_t	h = hash_calc((const uint8_t*)key, len) & HASH_MASK;
-    KeyVal	bucket = class_hash.slots + h;
+    KeyVal	bucket = hash->slots + h;
 
     if (0 != bucket->key) {
 	KeyVal	b;
@@ -116,10 +118,10 @@ oj_hash_get(const char *key, size_t len, VALUE **slotp) {
 	}
 	bucket->key = strndup(key, len);
 	bucket->len = len;
-	bucket->val = Qnil;
+	bucket->val = def_value;
 	*slotp = &bucket->val;
     }
-    return Qundef;
+    return Qnil;
 }
 
 void
@@ -135,3 +137,14 @@ oj_hash_print() {
 	printf("\n");
     }
 }
+
+VALUE
+oj_class_hash_get(const char *key, size_t len, VALUE **slotp) {
+    return hash_get(&class_hash, key, len, slotp, Qnil);
+}
+
+ID
+oj_intern_hash_get(const char *key, size_t len, ID **slotp) {
+    return (ID)hash_get(&intern_hash, key, len, (VALUE**)slotp, 0);
+}
+

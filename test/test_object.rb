@@ -284,27 +284,23 @@ class ObjectJuice < ::Test::Unit::TestCase
     dump_and_load(obj, false)
   end
 
-  def test_json_object_object
+  def test_time
+    t = Time.now()
+    dump_and_load(t, false)
+  end
+
+  def test_time_early
+    t = Time.xmlschema("1954-01-05T00:00:00.123456")
+    dump_and_load(t, false)
+  end
+
+  def test_json_object
     obj = Jeez.new(true, 58)
     dump_and_load(obj, false)
   end
 
-  def test_time
-    t = Time.now()
-    dump_and_load(t, true)
-  end
-
-
-=begin
-  def test_json_object_create_id
-    expected = Jeez.new(true, 58)
-    json = Oj.dump(expected, :indent => 2, :mode => :object)
-    obj = Oj.object_load(json)
-    assert_equal(expected, obj)
-  end
-
   def test_json_object_bad
-    json = %{{"json_class":"Junk","x":true}}
+    json = %{{"^o":"Junk","x":true}}
     begin
       Oj.object_load(json)
     rescue Exception => e
@@ -313,6 +309,8 @@ class ObjectJuice < ::Test::Unit::TestCase
     end
     assert(false, "*** expected an exception")
   end
+
+=begin
 
   def test_json_object_create_cache
     expected = Jeez.new(true, 58)

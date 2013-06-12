@@ -49,6 +49,27 @@ hash_key(ParseInfo pi, const char *key, size_t klen) {
     return rkey;
 }
 
+static VALUE
+str_to_value(const char *str, size_t len, const char *orig) {
+    VALUE	rstr;
+
+    if (':' == *orig && 0 < len) {
+#if HAS_ENCODING_SUPPORT
+	rstr = rb_str_new(str + 1, len - 1);
+	rb_enc_associate(rstr, oj_utf8_encoding);
+	rstr = rb_funcall(rstr, oj_to_sym_id, 0);
+#else
+	rstr = ID2SYM(rb_intern2(str + 1, len - 1));
+#endif
+    } else {
+	rstr = rb_str_new(str, len);
+#if HAS_ENCODING_SUPPORT
+	rb_enc_associate(rstr, oj_utf8_encoding);
+#endif
+    }
+    return rstr;
+}
+
 static int
 hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str, size_t len) {
     if (2 == klen) {
@@ -62,21 +83,21 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 		}
 	    }
 	    break;
+	case 'O': // odd object
+	    // TBD
+	    // need to store on stack and add to the array as they are collected
+	    // overload the stack classname and clen
+	    break;
 	case 'c': // class
 	    parent->val = oj_name2class(pi, str, len, Yes == pi->options.auto_define);
 	    break;
-	case 't': // time as a float TBD is a float callback needed
-	    // TBD parse time
-	case 'u': // ruby struct
 	default:
 	    return 0;
 	    break;
 	}
 	return 1; // handled
     } else if (3 <= klen && '#' == key[1]) {
-	//case 'i': // id in a circular reference
-	//case 'r': // ref in a circular reference
-	// TBD
+	// TBD hash entry
     }
     return 0;
 }
@@ -103,25 +124,65 @@ hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
 #endif
 	    }
 	    break;
+	case 'i': // circular index
+	    // TBD
+	    break;
 	default:
 	    return 0;
 	    break;
 	}
 	return 1; // handled
     } else if (3 <= klen && '#' == key[1]) {
-	//case 'i': // id in a circular reference
-	//case 'r': // ref in a circular reference
-	// TBD
+	// TBD hash entry
     }
     return 0;
 }
 
 static int
 hat_value(ParseInfo pi, Val parent, const char *key, size_t klen, VALUE value) {
-    if (3 <= klen && '#' == key[1]) {
-	//case 'i': // id in a circular reference
-	//case 'r': // ref in a circular reference
-	// TBD
+    if (2 == klen && 'u' == key[1] && T_ARRAY == rb_type(value)) {
+#if HAS_RSTRUCT
+	long	len = RARRAY_LEN(value);
+	VALUE	*a = RARRAY_PTR(value);
+	VALUE	sc;
+	VALUE	s;
+	VALUE	*sv;
+
+	if (0 == len) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "Invalid struct data");
+	    return 1;
+	}
+	sc = rb_const_get(oj_struct_class, rb_intern_str(*a));
+// use encoding as the indicator for Ruby 1.8.7 or 1.9.x
+#if HAS_ENCODING_SUPPORT
+	s = rb_struct_alloc_noinit(sc);
+#else
+	s = rb_struct_new(sc);
+#endif
+	sv = RSTRUCT_PTR(s);
+	if (RSTRUCT_LEN(s) < len - 1) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "Too many elements for Struct");
+	    return 1;
+	}
+	for (a++; 0 < len; len--, a++, sv++) {
+	    *sv = *a;
+	}
+	parent->val = s;
+#else
+	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "Ruby structs not supported with this version of Ruby");
+#endif
+	return 1;
+    } else if (3 <= klen && '#' == key[1] && T_ARRAY == rb_type(value)) {
+	long	len = RARRAY_LEN(value);
+	VALUE	*a = RARRAY_PTR(value);
+	
+	if (2 != len) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "invalid hash pair");
+	    return 1;
+	}
+	parent->val = rb_hash_new();
+	rb_hash_aset(parent->val, *a, a[1]);
+	return 1;
     }
     return 0;
 }
@@ -134,7 +195,7 @@ set_obj_ivar(VALUE obj, const char *key, size_t klen, VALUE value) {
 #if SAFE_CACHE
     pthread_mutex_lock(&oj_cache_mutex);
 #endif
-    if (0 == (var_id = oj_intern_hash_get(key, klen, &slot))) {
+    if (0 == (var_id = oj_attr_hash_get(key, klen, &slot))) {
 	char	attr[256];
 
 	if (sizeof(attr) <= klen + 2) {
@@ -160,8 +221,8 @@ set_obj_ivar(VALUE obj, const char *key, size_t klen, VALUE value) {
 		attr[klen + 1] = '\0';
 	    }
 	    var_id = rb_intern(attr);
-	    *slot = var_id;
 	}
+	*slot = var_id;
     }
 #if SAFE_CACHE
     pthread_mutex_unlock(&oj_cache_mutex);
@@ -170,9 +231,8 @@ set_obj_ivar(VALUE obj, const char *key, size_t klen, VALUE value) {
     rb_ivar_set(obj, var_id, value);
 }
 
-
 static void
-hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len, const char *orig) {
     Val	parent = stack_peek(&pi->stack);
 
  WHICH_TYPE:
@@ -184,19 +244,7 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 	}
 	break;
     case T_HASH:
-	{
-	    VALUE	rstr = rb_str_new(str, len);
-	    VALUE	rkey = rb_str_new(key, klen);
-
-#if HAS_ENCODING_SUPPORT
-	    rb_enc_associate(rstr, oj_utf8_encoding);
-	    rb_enc_associate(rkey, oj_utf8_encoding);
-#endif
-	    if (Yes == pi->options.sym_key) {
-		rkey = rb_str_intern(rkey);
-	    }
-	    rb_hash_aset(parent->val, rkey, rstr);
-	}
+	rb_hash_aset(parent->val, hash_key(pi, key, klen), str_to_value(str, len, orig));
 	break;
     case T_OBJECT:
 	{
@@ -251,7 +299,18 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
 	}
 	break;
     case T_HASH:
-	rb_hash_aset(parent->val, hash_key(pi, key, klen), value);
+	if (3 <= klen && '#' == key[1] && T_ARRAY == rb_type(value)) {
+	    long	len = RARRAY_LEN(value);
+	    VALUE	*a = RARRAY_PTR(value);
+	
+	    if (2 != len) {
+		oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "invalid hash pair");
+		return;
+	    }
+	    rb_hash_aset(parent->val, *a, a[1]);
+	} else {
+	    rb_hash_aset(parent->val, hash_key(pi, key, klen), value);
+	}
 	break;
     case T_OBJECT:
 	set_obj_ivar(parent->val, key, klen, value);
@@ -275,25 +334,16 @@ end_hash(struct _ParseInfo *pi) {
     if (Qnil == parent->val) {
 	parent->val = rb_hash_new();
     }
-    // TBD only if parent->val is a Hash
-    if (0 != parent->classname) {
-	VALUE	clas;
+}
 
-	clas = oj_name2class(pi, parent->classname, parent->clen, 0);
-	if (Qundef != clas) { // else an error
-	    parent->val = rb_funcall(clas, oj_json_create_id, 1, parent->val);
-	} else {
-	    char	buf[1024];
+static void
+array_append_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
+    rb_ary_push(stack_peek(&pi->stack)->val, str_to_value(str, len, orig));
+}
 
-	    memcpy(buf, parent->classname, parent->clen);
-	    buf[parent->clen] = '\0';
-	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "class %s is not defined", buf);
-	}
-	if (parent->classname < pi->json || pi->cur < parent->classname) {
-	    xfree((char*)parent->classname);
-	    parent->classname = 0;
-	}
-    }
+static void
+add_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
+    pi->stack.head->val = str_to_value(str, len, orig);
 }
 
 VALUE
@@ -306,6 +356,8 @@ oj_object_parse(int argc, VALUE *argv, VALUE self) {
     pi.hash_set_cstr = hash_set_cstr;
     pi.hash_set_num = hash_set_num;
     pi.hash_set_value = hash_set_value;
+    pi.add_cstr = add_cstr;
+    pi.array_append_cstr = array_append_cstr;
 
     return oj_pi_parse(argc, argv, &pi);
 }

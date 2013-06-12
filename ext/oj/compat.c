@@ -36,7 +36,7 @@
 #include "resolve.h"
 
 static void
-hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len, const char *orig) {
     Val	parent = stack_peek(&pi->stack);
 
     if (0 != pi->options.create_id &&

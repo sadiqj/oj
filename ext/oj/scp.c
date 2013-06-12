@@ -68,7 +68,7 @@ noop_add_value(ParseInfo pi, VALUE val) {
 }
 
 static void
-noop_add_cstr(ParseInfo pi, const char *str, size_t len) {
+noop_add_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
 }
 
 static void
@@ -76,7 +76,7 @@ noop_add_num(ParseInfo pi, NumInfo ni) {
 }
 
 static void
-noop_hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+noop_hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len, const char *orig) {
 }
 
 static void
@@ -88,7 +88,7 @@ noop_hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
 }
 
 static void
-noop_array_append_cstr(ParseInfo pi, const char *str, size_t len) {
+noop_array_append_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
 }
 
 static void
@@ -105,7 +105,7 @@ add_value(ParseInfo pi, VALUE val) {
 }
 
 static void
-add_cstr(ParseInfo pi, const char *str, size_t len) {
+add_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
     VALUE	rstr = rb_str_new(str, len);
 
 #if HAS_ENCODING_SUPPORT
@@ -153,7 +153,7 @@ hash_key(ParseInfo pi, const char *key, size_t klen) {
 }
 
 static void
-hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len, const char *orig) {
     VALUE	rstr = rb_str_new(str, len);
 
 #if HAS_ENCODING_SUPPORT
@@ -173,7 +173,7 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
 }
 
 static void
-array_append_cstr(ParseInfo pi, const char *str, size_t len) {
+array_append_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
     VALUE	rstr = rb_str_new(str, len);
 
 #if HAS_ENCODING_SUPPORT

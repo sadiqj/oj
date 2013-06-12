@@ -121,7 +121,7 @@ hash_get(Hash hash, const char *key, size_t len, VALUE **slotp, VALUE def_value)
 	bucket->val = def_value;
 	*slotp = &bucket->val;
     }
-    return Qnil;
+    return def_value;
 }
 
 void
@@ -144,7 +144,7 @@ oj_class_hash_get(const char *key, size_t len, VALUE **slotp) {
 }
 
 ID
-oj_intern_hash_get(const char *key, size_t len, ID **slotp) {
+oj_attr_hash_get(const char *key, size_t len, ID **slotp) {
     return (ID)hash_get(&intern_hash, key, len, (VALUE**)slotp, 0);
 }
 

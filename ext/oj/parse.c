@@ -286,23 +286,23 @@ read_escaped_str(ParseInfo pi, const char *start) {
 	}
     }
     if (0 == parent) {
-	pi->add_cstr(pi, buf.head, buf_len(&buf));
+	pi->add_cstr(pi, buf.head, buf_len(&buf), start);
     } else {
 	switch (parent->next) {
 	case NEXT_ARRAY_NEW:
 	case NEXT_ARRAY_ELEMENT:
-	    pi->array_append_cstr(pi, buf.head, buf_len(&buf));
+	    pi->array_append_cstr(pi, buf.head, buf_len(&buf), start);
 	    parent->next = NEXT_ARRAY_COMMA;
 	    break;
 	case NEXT_HASH_NEW:
 	case NEXT_HASH_KEY:
 	    // key will not be between pi->json and pi->cur.
-	    parent->key = strdup(buf.head); // TBD free this later
+	    parent->key = strdup(buf.head);
 	    parent->klen = buf_len(&buf);
 	    parent->next = NEXT_HASH_COLON;
 	    break;
 	case NEXT_HASH_VALUE:
-	    pi->hash_set_cstr(pi, parent->key, parent->klen, buf.head, buf_len(&buf));
+	    pi->hash_set_cstr(pi, parent->key, parent->klen, buf.head, buf_len(&buf), start);
 	    if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
 		xfree((char*)parent->key);
 		parent->key = 0;
@@ -337,12 +337,12 @@ read_str(ParseInfo pi) {
 	}
     }
     if (0 == parent) { // simple add
-	pi->add_cstr(pi, str, pi->cur - str);
+	pi->add_cstr(pi, str, pi->cur - str, str);
     } else {
 	switch (parent->next) {
 	case NEXT_ARRAY_NEW:
 	case NEXT_ARRAY_ELEMENT:
-	    pi->array_append_cstr(pi, str, pi->cur - str);
+	    pi->array_append_cstr(pi, str, pi->cur - str, str);
 	    parent->next = NEXT_ARRAY_COMMA;
 	    break;
 	case NEXT_HASH_NEW:
@@ -352,7 +352,7 @@ read_str(ParseInfo pi) {
 	    parent->next = NEXT_HASH_COLON;
 	    break;
 	case NEXT_HASH_VALUE:
-	    pi->hash_set_cstr(pi, parent->key, parent->klen, str, pi->cur - str);
+	    pi->hash_set_cstr(pi, parent->key, parent->klen, str, pi->cur - str, str);
 	    if (0 != parent->key && (parent->key < pi->json || pi->cur < parent->key)) {
 		xfree((char*)parent->key);
 		parent->key = 0;

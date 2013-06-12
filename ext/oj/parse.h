@@ -58,17 +58,17 @@ typedef struct _ParseInfo {
     int			expect_value;
     VALUE		(*start_hash)(struct _ParseInfo *pi);
     void		(*end_hash)(struct _ParseInfo *pi);
-    void		(*hash_set_cstr)(struct _ParseInfo *pi, const char *key, size_t klen, const char *str, size_t len);
+    void		(*hash_set_cstr)(struct _ParseInfo *pi, const char *key, size_t klen, const char *str, size_t len, const char *orig);
     void		(*hash_set_num)(struct _ParseInfo *pi, const char *key, size_t klen, NumInfo ni);
     void		(*hash_set_value)(struct _ParseInfo *pi, const char *key, size_t klen, VALUE value);
 
     VALUE		(*start_array)(struct _ParseInfo *pi);
     void		(*end_array)(struct _ParseInfo *pi);
-    void		(*array_append_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
+    void		(*array_append_cstr)(struct _ParseInfo *pi, const char *str, size_t len, const char *orig);
     void		(*array_append_num)(struct _ParseInfo *pi, NumInfo ni);
     void		(*array_append_value)(struct _ParseInfo *pi, VALUE value);
 
-    void		(*add_cstr)(struct _ParseInfo *pi, const char *str, size_t len);
+    void		(*add_cstr)(struct _ParseInfo *pi, const char *str, size_t len, const char *orig);
     void		(*add_num)(struct _ParseInfo *pi, NumInfo ni);
     void		(*add_value)(struct _ParseInfo *pi, VALUE val);
 } *ParseInfo;

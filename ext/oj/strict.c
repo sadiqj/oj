@@ -50,7 +50,7 @@ add_value(ParseInfo pi, VALUE val) {
 }
 
 static void
-add_cstr(ParseInfo pi, const char *str, size_t len) {
+add_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
     VALUE	rstr = rb_str_new(str, len);
 
 #if HAS_ENCODING_SUPPORT
@@ -83,7 +83,7 @@ hash_key(ParseInfo pi, const char *key, size_t klen) {
 }
 
 static void
-hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len) {
+hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_t len, const char *orig) {
     VALUE	rstr = rb_str_new(str, len);
 
 #if HAS_ENCODING_SUPPORT
@@ -108,7 +108,7 @@ start_array(ParseInfo pi) {
 }
 
 static void
-array_append_cstr(ParseInfo pi, const char *str, size_t len) {
+array_append_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
     VALUE	rstr = rb_str_new(str, len);
 
 #if HAS_ENCODING_SUPPORT

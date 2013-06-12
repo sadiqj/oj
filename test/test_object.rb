@@ -70,6 +70,9 @@ module One
   end # Two
 end # One
 
+class Stuck < Struct.new(:a, :b)
+end
+
 def hash_eql(h1, h2)
   return false if h1.size != h2.size
   h1.keys.each do |k|
@@ -114,6 +117,11 @@ class ObjectJuice < ::Test::Unit::TestCase
     dump_and_load('abc', false)
     dump_and_load("abc\ndef", false)
     dump_and_load("a\u0041", false)
+  end
+
+  def test_symbol
+    dump_and_load(:abc, false)
+    dump_and_load(":abc", true)
   end
 
   def test_encode
@@ -299,6 +307,11 @@ class ObjectJuice < ::Test::Unit::TestCase
     dump_and_load(obj, false)
   end
 
+  def test_json_object_create_deep
+    obj = One::Two::Three::Deep.new()
+    dump_and_load(obj, false)
+  end
+
   def test_json_object_bad
     json = %{{"^o":"Junk","x":true}}
     begin
@@ -310,32 +323,17 @@ class ObjectJuice < ::Test::Unit::TestCase
     assert(false, "*** expected an exception")
   end
 
-=begin
-
-  def test_json_object_create_cache
-    expected = Jeez.new(true, 58)
-    json = Oj.dump(expected, :indent => 2, :mode => :object)
-    obj = Oj.object_load(json, :class_cache => true)
-    assert_equal(expected, obj)
-    obj = Oj.object_load(json, :class_cache => false)
-    assert_equal(expected, obj)
+  def test_json_struct
+    obj = Stuck.new(false, 7)
+    dump_and_load(obj, false)
   end
 
-  def test_json_object_create_id_other
-    expected = Jeez.new(true, 58)
-    json = Oj.dump(expected, :indent => 2, :mode => :object)
-    json.gsub!('json_class', '_class_')
-    obj = Oj.object_load(json, :create_id => "_class_")
-    assert_equal(expected, obj)
+  def test_json_non_str_hash
+    obj = { 59 => "young", false => true }
+    dump_and_load(obj, false)
   end
 
-  def test_json_object_create_deep
-    expected = One::Two::Three::Deep.new()
-    json = Oj.dump(expected, :indent => 2, :mode => :object)
-    obj = Oj.object_load(json)
-    assert_equal(expected, obj)
-  end
-=end
+  # TBD circular, odd
 
   def dump_and_load(obj, trace=false)
     json = Oj.dump(obj, :indent => 2, :mode => :object)

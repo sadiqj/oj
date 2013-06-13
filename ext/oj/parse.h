@@ -34,6 +34,7 @@
 #include "ruby.h"
 #include "oj.h"
 #include "val_stack.h"
+#include "circarray.h"
 
 typedef struct _NumInfo {
     int64_t	i;
@@ -55,6 +56,7 @@ typedef struct _ParseInfo {
     struct _Options	options;
     void		*cbc;
     struct _ValStack	stack;
+    CircArray		circ_array;
     int			expect_value;
     VALUE		(*start_hash)(struct _ParseInfo *pi);
     void		(*end_hash)(struct _ParseInfo *pi);

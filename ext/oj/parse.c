@@ -752,7 +752,15 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi) {
 	    rb_raise(rb_eArgError, "strict_parse() expected a String or IO Object.");
 	}
     }
+    if (Yes == pi->options.circular) {
+	pi->circ_array = oj_circ_array_new();
+    } else {
+	pi->circ_array = 0;
+    }
     oj_parse2(pi);
+    if (0 != pi->circ_array) {
+	oj_circ_array_free(pi->circ_array);
+    }
     if (0 != buf) {
 	xfree(buf);
     }

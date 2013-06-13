@@ -36,6 +36,20 @@
 #include "resolve.h"
 #include "hash.h"
 
+inline static long
+read_long(const char *str, size_t len) {
+    long	n = 0;
+
+    for (; 0 < len; str++, len--) {
+	if ('0' <= *str && *str <= '9') {
+	    n = n * 10 + (*str - '0');
+	} else {
+	    return -1;
+	}
+    }
+    return n;
+}
+
 static VALUE
 hash_key(ParseInfo pi, const char *key, size_t klen) {
     VALUE	rkey = rb_str_new(key, klen);
@@ -50,8 +64,8 @@ hash_key(ParseInfo pi, const char *key, size_t klen) {
 }
 
 static VALUE
-str_to_value(const char *str, size_t len, const char *orig) {
-    VALUE	rstr;
+str_to_value(ParseInfo pi, const char *str, size_t len, const char *orig) {
+    VALUE	rstr = Qnil;
 
     if (':' == *orig && 0 < len) {
 #if HAS_ENCODING_SUPPORT
@@ -61,6 +75,14 @@ str_to_value(const char *str, size_t len, const char *orig) {
 #else
 	rstr = ID2SYM(rb_intern2(str + 1, len - 1));
 #endif
+    } else if (pi->circ_array && 3 <= len && '^' == *orig && 'r' == orig[1]) {
+	long	i = read_long(str + 2, len - 2);
+
+	if (0 > i) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "not a valid ID number");
+	    return Qnil;
+	}
+	rstr = oj_circ_array_get(pi->circ_array, i);
     } else {
 	rstr = rb_str_new(str, len);
 #if HAS_ENCODING_SUPPORT
@@ -88,6 +110,22 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    // need to store on stack and add to the array as they are collected
 	    // overload the stack classname and clen
 	    break;
+	case 'm':
+	    
+#if HAS_ENCODING_SUPPORT
+	    parent->val = rb_str_new(str + 1, len - 1);
+	    rb_enc_associate(parent->val, oj_utf8_encoding);
+	    parent->val = rb_funcall(parent->val, oj_to_sym_id, 0);
+#else
+	    parent->val = ID2SYM(rb_intern2(str + 1, len - 1));
+#endif
+	    break;
+	case 's':
+	    parent->val = rb_str_new(str, len);
+#if HAS_ENCODING_SUPPORT
+	    rb_enc_associate(parent->val, oj_utf8_encoding);
+#endif
+	    break;
 	case 'c': // class
 	    parent->val = oj_name2class(pi, str, len, Yes == pi->options.auto_define);
 	    break;
@@ -96,8 +134,6 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    break;
 	}
 	return 1; // handled
-    } else if (3 <= klen && '#' == key[1]) {
-	// TBD hash entry
     }
     return 0;
 }
@@ -106,7 +142,7 @@ static int
 hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
     if (2 == klen) {
 	switch (key[1]) {
-	case 't': // time as a float TBD is a float callback needed
+	case 't': // time as a float
 	    {
 		int64_t	nsec = ni->num * 1000000000LL / ni->div;
 
@@ -125,15 +161,20 @@ hat_num(ParseInfo pi, Val parent, const char *key, size_t klen, NumInfo ni) {
 	    }
 	    break;
 	case 'i': // circular index
-	    // TBD
+	    if (!ni->infinity && !ni->neg && 1 == ni->div && 0 == ni->exp && 0 != pi->circ_array) { // fixnum
+		if (Qnil == parent->val) {
+		    parent->val = rb_hash_new();
+		}
+		oj_circ_array_set(pi->circ_array, parent->val, ni->i);
+	    } else {
+		return 0;
+	    }
 	    break;
 	default:
 	    return 0;
 	    break;
 	}
 	return 1; // handled
-    } else if (3 <= klen && '#' == key[1]) {
-	// TBD hash entry
     }
     return 0;
 }
@@ -244,17 +285,10 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 	}
 	break;
     case T_HASH:
-	rb_hash_aset(parent->val, hash_key(pi, key, klen), str_to_value(str, len, orig));
+	rb_hash_aset(parent->val, hash_key(pi, key, klen), str_to_value(pi, str, len, orig));
 	break;
     case T_OBJECT:
-	{
-	    VALUE	rstr = rb_str_new(str, len);
-
-#if HAS_ENCODING_SUPPORT
-	    rb_enc_associate(rstr, oj_utf8_encoding);
-#endif
-	    set_obj_ivar(parent->val, key, klen, rstr);
-	}
+	set_obj_ivar(parent->val, key, klen, str_to_value(pi, str, len, orig));
 	break;
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
@@ -338,12 +372,13 @@ end_hash(struct _ParseInfo *pi) {
 
 static void
 array_append_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
-    rb_ary_push(stack_peek(&pi->stack)->val, str_to_value(str, len, orig));
+    // TBD circular ^i123 
+    rb_ary_push(stack_peek(&pi->stack)->val, str_to_value(pi, str, len, orig));
 }
 
 static void
 add_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
-    pi->stack.head->val = str_to_value(str, len, orig);
+    pi->stack.head->val = str_to_value(pi, str, len, orig);
 }
 
 VALUE

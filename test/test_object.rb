@@ -333,7 +333,26 @@ class ObjectJuice < ::Test::Unit::TestCase
     dump_and_load(obj, false)
   end
 
-  # TBD circular, odd
+  def test_circular_hash
+    h = { 'a' => 7 }
+    h['b'] = h
+    json = Oj.dump(h, :mode => :object, :indent => 2, :circular => true)
+    h2 = Oj.object_load(json, :circular => true)
+    assert_equal(h2['b'].__id__, h2.__id__)
+  end
+
+  def test_circular_array
+    a = [7]
+    a << a
+    json = Oj.dump(a, :mode => :object, :indent => 2, :circular => true)
+    puts "\n*** #{json}"
+    a2 = Oj.object_load(json, :circular => true)
+    assert_equal(a2[1].__id__, a2.__id__)
+  end
+
+  # TBD circular obj
+
+  # TBD circular, odd, exception called from ruby call
 
   def dump_and_load(obj, trace=false)
     json = Oj.dump(obj, :indent => 2, :mode => :object)

@@ -4,8 +4,10 @@
 ^c^s show subtree
 
 - parser
- - handle :xxx string as symbol
  - wrap ruby callbacks to protect agains exceptions
+ - Odd
+  - allocate Value[] for argument and put in classname
+ - circular
 
 - object parser
  - put Qnil in place of Hash for hash_start

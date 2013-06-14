@@ -1,4 +1,4 @@
-/* val_stack.c
+/* odd.h
  * Copyright (c) 2011, Peter Ohler
  * All rights reserved.
  * 
@@ -28,21 +28,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "val_stack.h"
+#ifndef __OJ_ODD_H__
+#define __OJ_ODD_H__
 
-const char*
-oj_stack_next_string(ValNext n) {
-    switch (n) {
-    case NEXT_ARRAY_NEW:	return "array element or close";
-    case NEXT_ARRAY_ELEMENT:	return "array element";
-    case NEXT_ARRAY_COMMA:	return "comma";
-    case NEXT_HASH_NEW:		return "hash pair or close";
-    case NEXT_HASH_KEY:		return "hash key";
-    case NEXT_HASH_COLON:	return "colon";
-    case NEXT_HASH_VALUE:	return "hash value";
-    case NEXT_HASH_COMMA:	return "comma";
-    case NEXT_NONE:		break;
-    default:			break;
-    }
-    return "nothing";
-}
+#include "ruby.h"
+
+#define MAX_ODD_ARGS	10
+
+typedef struct _Odd {
+    const char	*classname;
+    VALUE	clas;			// Ruby class
+    VALUE	create_obj;
+    ID		create_op;
+    int		attr_cnt;
+    ID		attrs[MAX_ODD_ARGS];	// 0 terminated attr IDs
+} *Odd;
+
+extern void	oj_odd_init(void);
+extern Odd	oj_get_odd(VALUE clas);
+// TBD get by char* and len
+// allocate and free args array
+// find by str and len
+
+#endif /* __OJ_ODD_H__ */

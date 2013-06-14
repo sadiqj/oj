@@ -36,17 +36,6 @@
 #define STACK_INC	16
 
 typedef enum {
-    TYPE_NONE	= 0,
-    TYPE_HASH	= 'h',
-    TYPE_ARRAY	= 'a',
-    TYPE_STR	= 's',
-    TYPE_BOOL	= 'b',
-    TYPE_NUM	= '#',
-    TYPE_NULL   = 'n',
-    TYPE_ERR	= 'E',
-} ValType;
-
-typedef enum {
     NEXT_NONE		= 0,
     NEXT_ARRAY_NEW	= 'a',
     NEXT_ARRAY_ELEMENT	= 'e',
@@ -61,11 +50,13 @@ typedef enum {
 typedef struct _Val {
     VALUE	val;
     const char	*key;
-    const char	*classname;
+    union {
+	const char	*classname;
+	VALUE		*odd_args;
+    };
     uint16_t	klen;
     uint16_t	clen;
     char	next; // ValNext
-    //char	type; // ValType
 } *Val;
 
 typedef struct _ValStack {
@@ -165,6 +156,5 @@ stack_pop(ValStack stack) {
 }
 
 extern const char*	oj_stack_next_string(ValNext n);
-extern const char*	oj_stack_type_string(ValType t);
 
 #endif /* __OJ_VAL_STACK_H__ */

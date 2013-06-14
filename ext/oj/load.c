@@ -43,6 +43,7 @@
 #define OJ_INFINITY (1.0/0.0)
 
 #include "oj.h"
+#include "odd.h"
 
 enum {
     TIME_HINT = 0x0100,

@@ -35,6 +35,7 @@
 #include "parse.h"
 #include "resolve.h"
 #include "hash.h"
+#include "odd.h"
 
 inline static long
 read_long(const char *str, size_t len) {
@@ -106,9 +107,20 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    }
 	    break;
 	case 'O': // odd object
-	    // TBD
-	    // need to store on stack and add to the array as they are collected
-	    // overload the stack classname and clen
+	    {
+		Odd	odd = oj_get_odd(Qnil); // TBD
+
+		if (0 == odd) {
+		    return 0;
+		}
+		// TBD place odd class here
+		// allocate Values[] on odd_args
+
+		// add arg names to Odd struct alongs with klen
+
+		// need to store on stack and add to the array as they are collected
+		// overload the stack classname and clen
+	    }
 	    break;
 	case 'm':
 	    
@@ -279,6 +291,7 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
  WHICH_TYPE:
     switch (rb_type(parent->val)) {
     case T_NIL:
+	parent->odd_args = 0; // make sure it is 0 in case not odd
 	if ('^' != *key || !hat_cstr(pi, parent, key, klen, str, len)) {
 	    parent->val = rb_hash_new();
 	    goto WHICH_TYPE;
@@ -290,6 +303,7 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
     case T_OBJECT:
 	set_obj_ivar(parent->val, key, klen, str_to_value(pi, str, len, orig));
 	break;
+	// TBD odd class
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
 	return;
@@ -303,6 +317,7 @@ hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
  WHICH_TYPE:
     switch (rb_type(parent->val)) {
     case T_NIL:
+	parent->odd_args = 0; // make sure it is 0 in case not odd
 	if ('^' != *key || !hat_num(pi, parent, key, klen, ni)) {
 	    parent->val = rb_hash_new();
 	    goto WHICH_TYPE;
@@ -312,8 +327,14 @@ hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
 	rb_hash_aset(parent->val, hash_key(pi, key, klen), oj_num_as_value(ni));
 	break;
     case T_OBJECT:
-	set_obj_ivar(parent->val, key, klen, oj_num_as_value(ni));
+	if (2 == klen && '^' == *key && 'i' == key[1] &&
+	    !ni->infinity && !ni->neg && 1 == ni->div && 0 == ni->exp && 0 != pi->circ_array) { // fixnum
+	    oj_circ_array_set(pi->circ_array, parent->val, ni->i);
+	} else {
+	    set_obj_ivar(parent->val, key, klen, oj_num_as_value(ni));
+	}
 	break;
+	// TBD odd class
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
 	return;
@@ -327,6 +348,7 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
  WHICH_TYPE:
     switch (rb_type(parent->val)) {
     case T_NIL:
+	parent->odd_args = 0; // make sure it is 0 in case not odd
 	if ('^' != *key || !hat_value(pi, parent, key, klen, value)) {
 	    parent->val = rb_hash_new();
 	    goto WHICH_TYPE;
@@ -349,6 +371,7 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
     case T_OBJECT:
 	set_obj_ivar(parent->val, key, klen, value);
 	break;
+	// TBD odd class
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
 	return;
@@ -367,12 +390,31 @@ end_hash(struct _ParseInfo *pi) {
 
     if (Qnil == parent->val) {
 	parent->val = rb_hash_new();
+    } else {
+	// TBD odd_args
     }
 }
 
 static void
 array_append_cstr(ParseInfo pi, const char *str, size_t len, const char *orig) {
-    // TBD circular ^i123 
+    if (3 <= len && 0 != pi->circ_array) {
+	if ('i' == str[1]) {
+	    long	i = read_long(str + 2, len - 2);
+
+	    if (0 < i) {
+		oj_circ_array_set(pi->circ_array, stack_peek(&pi->stack)->val, i);
+		return;
+	    }
+	} else if ('r' == str[1]) {
+	    long	i = read_long(str + 2, len - 2);
+
+	    if (0 < i) {
+		rb_ary_push(stack_peek(&pi->stack)->val, oj_circ_array_get(pi->circ_array, i));
+		return;
+	    }
+	    
+	}
+    }
     rb_ary_push(stack_peek(&pi->stack)->val, str_to_value(pi, str, len, orig));
 }
 

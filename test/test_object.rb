@@ -345,14 +345,29 @@ class ObjectJuice < ::Test::Unit::TestCase
     a = [7]
     a << a
     json = Oj.dump(a, :mode => :object, :indent => 2, :circular => true)
-    puts "\n*** #{json}"
     a2 = Oj.object_load(json, :circular => true)
     assert_equal(a2[1].__id__, a2.__id__)
   end
 
-  # TBD circular obj
+  def test_circular_object
+    obj = Jeez.new(nil, 58)
+    obj.x = obj
+    json = Oj.dump(obj, :mode => :object, :indent => 2, :circular => true)
+    obj2 = Oj.object_load(json, :circular => true)
+    assert_equal(obj2.x.__id__, obj2.__id__)
+  end
 
-  # TBD circular, odd, exception called from ruby call
+  def test_circular
+    h = { 'a' => 7 }
+    obj = Jeez.new(h, 58)
+    obj.x['b'] = obj
+    json = Oj.dump(obj, :mode => :object, :indent => 2, :circular => true)
+    Oj.object_load(json, :circular => true)
+    assert_equal(obj.x.__id__, h.__id__)
+    assert_equal(h['b'].__id__, obj.__id__)
+  end
+
+  # TBD odd, exception called from ruby call
 
   def dump_and_load(obj, trace=false)
     json = Oj.dump(obj, :indent => 2, :mode => :object)

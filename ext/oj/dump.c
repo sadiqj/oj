@@ -40,6 +40,7 @@
 
 #include "oj.h"
 #include "cache8.h"
+#include "odd.h"
 
 #if !HAS_ENCODING_SUPPORT || defined(RUBINIUS_RUBY)
 #define rb_eEncodingError	rb_eException

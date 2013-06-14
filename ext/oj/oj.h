@@ -67,8 +67,6 @@ enum st_retval {ST_CONTINUE = 0, ST_STOP = 1, ST_DELETE = 2, ST_CHECK};
 
 #include "err.h"
 
-#define MAX_ODD_ARGS	10
-
 typedef enum {
     Yes	   = 'y',
     No	   = 'n',
@@ -132,14 +130,6 @@ typedef struct _Out {
     int		allocated;
 } *Out;
 
-typedef struct _Odd {
-    VALUE	clas;			// Ruby class
-    VALUE	create_obj;
-    ID		create_op;
-    int		attr_cnt;
-    ID		attrs[MAX_ODD_ARGS];	// 0 terminated attr IDs
-} *Odd;
-
 enum {
     STR_VAL  = 0x00,
     COL_VAL  = 0x01,
@@ -178,8 +168,6 @@ extern void	oj_dump_leaf_to_json(Leaf leaf, Options copts, Out out);
 extern void	oj_write_leaf_to_file(Leaf leaf, const char *path, Options copts);
 
 extern void	oj_init_doc(void);
-
-extern Odd	oj_get_odd(VALUE clas);
 
 extern VALUE	Oj;
 extern struct _Options	oj_default_options;

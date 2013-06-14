@@ -39,6 +39,7 @@
 #include "oj.h"
 #include "parse.h"
 #include "hash.h"
+#include "odd.h"
 
 typedef struct _YesNoOpt {
     VALUE	sym;
@@ -147,19 +148,6 @@ struct _Options	oj_default_options = {
 };
 
 static VALUE	define_mimic_json(int argc, VALUE *argv, VALUE self);
-static struct _Odd	odds[5]; // bump up if new Odd classes are added
-
-Odd
-oj_get_odd(VALUE clas) {
-    Odd	odd = odds;
-
-    for (; Qundef != odd->clas; odd++) {
-	if (clas == odd->clas) {
-	    return odd;
-	}
-    }
-    return 0;
-}
 
 /* call-seq: default_options() => Hash
  *
@@ -1039,9 +1027,6 @@ hash_test(VALUE self) {
 #endif
 
 void Init_oj() {
-    Odd	odd;
-    ID	*idp;
-
     Oj = rb_define_module("Oj");
 
     rb_require("time");
@@ -1133,59 +1118,7 @@ void Init_oj() {
     oj_cache_new(&oj_class_cache);
     oj_cache_new(&oj_attr_cache);
     oj_hash_init();
-
-    odd = odds;
-    // Rational
-    idp = odd->attrs;
-    odd->clas = rb_const_get(rb_cObject, rb_intern("Rational"));
-    odd->create_obj = rb_cObject;
-    odd->create_op = rb_intern("Rational");
-    odd->attr_cnt = 2;
-    *idp++ = rb_intern("numerator");
-    *idp++ = rb_intern("denominator");
-    *idp++ = 0;
-    // Date
-    odd++;
-    idp = odd->attrs;
-    odd->clas = oj_date_class;
-    odd->create_obj = odd->clas;
-    odd->create_op = oj_new_id;
-    odd->attr_cnt = 4;
-    *idp++ = rb_intern("year");
-    *idp++ = rb_intern("month");
-    *idp++ = rb_intern("day");
-    *idp++ = rb_intern("start");
-    *idp++ = 0;
-    // DateTime
-    odd++;
-    idp = odd->attrs;
-    odd->clas = oj_datetime_class;
-    odd->create_obj = odd->clas;
-    odd->create_op = oj_new_id;
-    odd->attr_cnt = 8;
-    *idp++ = rb_intern("year");
-    *idp++ = rb_intern("month");
-    *idp++ = rb_intern("day");
-    *idp++ = rb_intern("hour");
-    *idp++ = rb_intern("min");
-    *idp++ = rb_intern("sec");
-    *idp++ = rb_intern("offset");
-    *idp++ = rb_intern("start");
-    *idp++ = 0;
-    // Range
-    odd++;
-    idp = odd->attrs;
-    odd->clas = rb_const_get(rb_cObject, rb_intern("Range"));
-    odd->create_obj = odd->clas;
-    odd->create_op = oj_new_id;
-    odd->attr_cnt = 3;
-    *idp++ = rb_intern("begin");
-    *idp++ = rb_intern("end");
-    *idp++ = rb_intern("exclude_end?");
-    *idp++ = 0;
-    // The end. bump up the size of odds if a new class is added.
-    odd++;
-    odd->clas = Qundef;
+    oj_odd_init();
 
 #if SAFE_CACHE
     pthread_mutex_init(&oj_cache_mutex, 0);

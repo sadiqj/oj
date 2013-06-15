@@ -509,6 +509,19 @@ load_with_opts(VALUE input, Options copts) {
     return obj;
 }
 
+/* Document-method: compat_load
+ *	call-seq: compat_load(json, options) => Hash, Array, String, Fixnum, Float, true, false, or nil
+ *
+ * Parses a JSON document String into a Hash, Array, String, Fixnum, Float,
+ * true, false, or nil. Raises an exception if the JSON is malformed or the
+ * classes specified are not valid. If the string input is not a valid JSON
+ * document (an empty string is not a valid JSON document) an exception is
+ * raised.
+ *
+ * @param [String] json JSON String
+ * @param [Hash] options load options (same as default_options)
+ */
+
 /* call-seq: load(json, options) => Hash, Array, String, Fixnum, Float, true, false, or nil
  *
  * Parses a JSON document String into a Hash, Array, String, Fixnum, Float,
@@ -522,15 +535,40 @@ load_with_opts(VALUE input, Options copts) {
  */
 static VALUE
 load(int argc, VALUE *argv, VALUE self) {
-    struct _Options	options = oj_default_options;
+    Mode	mode = oj_default_options.mode;
 
     if (1 > argc) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to load().");
     }
     if (2 <= argc) {
-	oj_parse_options(argv[1], &options);
+	VALUE	ropts = argv[1];
+	VALUE	v;
+
+	if (Qnil != (v = rb_hash_lookup(ropts, mode_sym))) {
+	    if (object_sym == v) {
+		mode = ObjectMode;
+	    } else if (strict_sym == v) {
+		mode = StrictMode;
+	    } else if (compat_sym == v) {
+		mode = CompatMode;
+	    } else if (null_sym == v) {
+		mode = NullMode;
+	    } else {
+		rb_raise(rb_eArgError, ":mode must be :object, :strict, :compat, or :null.");
+	    }
+	}
     }
-    return load_with_opts(*argv, &options);
+    switch (mode) {
+    case StrictMode:
+	return oj_strict_parse(argc, argv, self);
+    case NullMode:
+    case CompatMode:
+	return oj_compat_parse(argc, argv, self);
+    case ObjectMode:
+    default:
+	break;
+    }
+    return oj_object_parse(argc, argv, self);
 }
 
 /* Document-method: load_file
@@ -551,50 +589,65 @@ load_file(int argc, VALUE *argv, VALUE self) {
     FILE		*f;
     unsigned long	len;
     VALUE		obj;
-    struct _Options	options = oj_default_options;
-    size_t		max_stack = oj_default_options.max_stack;
-    struct _Err	err;
+    Mode		mode = oj_default_options.mode;
 
-    err_init(&err);
     Check_Type(*argv, T_STRING);
-    if (2 <= argc) {
-	oj_parse_options(argv[1], &options);
-    }
     path = StringValuePtr(*argv);
     if (0 == (f = fopen(path, "r"))) {
 	rb_raise(rb_eIOError, "%s", strerror(errno));
     }
     fseek(f, 0, SEEK_END);
     len = ftell(f);
-    if (max_stack < len) {
-	json = ALLOC_N(char, len + 1);
-    } else {
-	json = ALLOCA_N(char, len + 1);
-    }
+    json = ALLOC_N(char, len + 1);
     fseek(f, 0, SEEK_SET);
     if (len != fread(json, 1, len, f)) {
-	if (max_stack < len) {
-	    xfree(json);
-	}
+	xfree(json);
 	fclose(f);
 	rb_raise(rb_const_get_at(Oj, rb_intern("LoadError")), "Failed to read %ld bytes from %s.", len, path);
     }
     fclose(f);
     json[len] = '\0';
-    obj = oj_parse(json, &options, &err);
-    if (max_stack < len) {
-	xfree(json);
+
+    if (1 > argc) {
+	rb_raise(rb_eArgError, "Wrong number of arguments to load().");
     }
-    if (err_has(&err)) {
-	oj_err_raise(&err);
+    if (2 <= argc) {
+	VALUE	ropts = argv[1];
+	VALUE	v;
+
+	if (Qnil != (v = rb_hash_lookup(ropts, mode_sym))) {
+	    if (object_sym == v) {
+		mode = ObjectMode;
+	    } else if (strict_sym == v) {
+		mode = StrictMode;
+	    } else if (compat_sym == v) {
+		mode = CompatMode;
+	    } else if (null_sym == v) {
+		mode = NullMode;
+	    } else {
+		rb_raise(rb_eArgError, ":mode must be :object, :strict, :compat, or :null.");
+	    }
+	}
     }
-    return obj;
+    // The json string is freed in the parser when it is finished with it.
+    switch (mode) {
+    case StrictMode:
+	return oj_strict_parse_cstr(argc, argv, json);
+    case NullMode:
+    case CompatMode:
+	return oj_compat_parse_cstr(argc, argv, json);
+    case ObjectMode:
+    default:
+	break;
+    }
+    return oj_object_parse_cstr(argc, argv, json);
 }
 
 /* call-seq: safe_load(doc)
  *
- * Loads a JSON document in strict mode with auto_define and symbol_keys turned off. This function should be safe to use
- * with JSON received on an unprotected public interface.
+ * Loads a JSON document in strict mode with auto_define and symbol_keys turned
+ * off. This function should be safe to use with JSON received on an unprotected
+ * public interface.
  * @param [String|IO] doc JSON String or IO to load
  * @return [Hash|Array|String|Fixnum|Bignum|BigDecimal|nil|True|False]
  */

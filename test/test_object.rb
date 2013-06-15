@@ -367,7 +367,9 @@ class ObjectJuice < ::Test::Unit::TestCase
     assert_equal(h['b'].__id__, obj.__id__)
   end
 
-  # TBD odd, exception called from ruby call
+  def test_odd_date
+    dump_and_load(Date.new(2012, 6, 19), false)
+  end
 
   def dump_and_load(obj, trace=false)
     json = Oj.dump(obj, :indent => 2, :mode => :object)

@@ -160,6 +160,10 @@ extern VALUE	oj_strict_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_compat_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_object_parse(int argc, VALUE *argv, VALUE self);
 
+extern VALUE	oj_strict_parse_cstr(int argc, VALUE *argv, char *json);
+extern VALUE	oj_compat_parse_cstr(int argc, VALUE *argv, char *json);
+extern VALUE	oj_object_parse_cstr(int argc, VALUE *argv, char *json);
+
 extern void	oj_parse_options(VALUE ropts, Options copts);
 
 extern void	oj_dump_obj_to_json(VALUE obj, Options copts, Out out);

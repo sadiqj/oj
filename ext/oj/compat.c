@@ -90,5 +90,16 @@ oj_compat_parse(int argc, VALUE *argv, VALUE self) {
     pi.end_hash = end_hash;
     pi.hash_set_cstr = hash_set_cstr;
 
-    return oj_pi_parse(argc, argv, &pi);
+    return oj_pi_parse(argc, argv, &pi, 0);
+}
+
+VALUE
+oj_compat_parse_cstr(int argc, VALUE *argv, char *json) {
+    struct _ParseInfo	pi;
+
+    oj_set_strict_callbacks(&pi);
+    pi.end_hash = end_hash;
+    pi.hash_set_cstr = hash_set_cstr;
+
+    return oj_pi_parse(argc, argv, &pi, json);
 }

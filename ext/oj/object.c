@@ -108,22 +108,16 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    break;
 	case 'O': // odd object
 	    {
-		Odd	odd = oj_get_odd(Qnil); // TBD
+		Odd	odd = oj_get_oddc(str, len);
 
 		if (0 == odd) {
 		    return 0;
 		}
-		// TBD place odd class here
-		// allocate Values[] on odd_args
-
-		// add arg names to Odd struct alongs with klen
-
-		// need to store on stack and add to the array as they are collected
-		// overload the stack classname and clen
+		parent->val = odd->clas;
+		parent->odd_args = oj_odd_alloc_args(odd);
 	    }
 	    break;
 	case 'm':
-	    
 #if HAS_ENCODING_SUPPORT
 	    parent->val = rb_str_new(str + 1, len - 1);
 	    rb_enc_associate(parent->val, oj_utf8_encoding);
@@ -206,7 +200,7 @@ hat_value(ParseInfo pi, Val parent, const char *key, size_t klen, VALUE value) {
 	    return 1;
 	}
 	sc = rb_const_get(oj_struct_class, rb_intern_str(*a));
-// use encoding as the indicator for Ruby 1.8.7 or 1.9.x
+	// use encoding as the indicator for Ruby 1.8.7 or 1.9.x
 #if HAS_ENCODING_SUPPORT
 	s = rb_struct_alloc_noinit(sc);
 #else
@@ -303,7 +297,21 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
     case T_OBJECT:
 	set_obj_ivar(parent->val, key, klen, str_to_value(pi, str, len, orig));
 	break;
-	// TBD odd class
+    case T_CLASS:
+	if (0 == parent->odd_args) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "%s is not an odd class", rb_class2name(rb_obj_class(parent->val)));
+	    return;
+	} else if (0 != oj_odd_set_arg(parent->odd_args, key, klen, str_to_value(pi, str, len, orig))) {
+	    char	buf[256];
+
+	    if (sizeof(buf) - 1 <= klen) {
+		klen = sizeof(buf) - 2;
+	    }
+	    memcpy(buf, key, klen);
+	    buf[klen] = '\0';
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "%s is not an attribute of %s", buf, rb_class2name(rb_obj_class(parent->val)));
+	}
+	break;
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
 	return;
@@ -334,7 +342,21 @@ hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
 	    set_obj_ivar(parent->val, key, klen, oj_num_as_value(ni));
 	}
 	break;
-	// TBD odd class
+    case T_CLASS:
+	if (0 == parent->odd_args) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "%s is not an odd class", rb_class2name(rb_obj_class(parent->val)));
+	    return;
+	} else if (0 != oj_odd_set_arg(parent->odd_args, key, klen, oj_num_as_value(ni))) {
+	    char	buf[256];
+
+	    if (sizeof(buf) - 1 <= klen) {
+		klen = sizeof(buf) - 2;
+	    }
+	    memcpy(buf, key, klen);
+	    buf[klen] = '\0';
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "%s is not an attribute of %s", buf, rb_class2name(rb_obj_class(parent->val)));
+	}
+	break;
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
 	return;
@@ -371,7 +393,21 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
     case T_OBJECT:
 	set_obj_ivar(parent->val, key, klen, value);
 	break;
-	// TBD odd class
+    case T_CLASS:
+	if (0 == parent->odd_args) {
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "%s is not an odd class", rb_class2name(rb_obj_class(parent->val)));
+	    return;
+	} else if (0 !=	oj_odd_set_arg(parent->odd_args, key, klen, value)) {
+	    char	buf[256];
+
+	    if (sizeof(buf) - 1 <= klen) {
+		klen = sizeof(buf) - 2;
+	    }
+	    memcpy(buf, key, klen);
+	    buf[klen] = '\0';
+	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "%s is not an attribute of %s", buf, rb_class2name(rb_obj_class(parent->val)));
+	}
+	break;
     default:
 	oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "can not add attributes to a %s", rb_class2name(rb_obj_class(parent->val)));
 	return;
@@ -390,8 +426,12 @@ end_hash(struct _ParseInfo *pi) {
 
     if (Qnil == parent->val) {
 	parent->val = rb_hash_new();
-    } else {
-	// TBD odd_args
+    } else if (0 != parent->odd_args) {
+	OddArgs	oa = parent->odd_args;
+
+	parent->val = rb_funcall2(oa->odd->create_obj, oa->odd->create_op, oa->odd->attr_cnt, oa->args);
+	oj_odd_free(oa);
+	parent->odd_args = 0;
     }
 }
 
@@ -436,5 +476,21 @@ oj_object_parse(int argc, VALUE *argv, VALUE self) {
     pi.add_cstr = add_cstr;
     pi.array_append_cstr = array_append_cstr;
 
-    return oj_pi_parse(argc, argv, &pi);
+    return oj_pi_parse(argc, argv, &pi, 0);
+}
+
+VALUE
+oj_object_parse_cstr(int argc, VALUE *argv, char *json) {
+    struct _ParseInfo	pi;
+
+    oj_set_strict_callbacks(&pi);
+    pi.end_hash = end_hash;
+    pi.start_hash = start_hash;
+    pi.hash_set_cstr = hash_set_cstr;
+    pi.hash_set_num = hash_set_num;
+    pi.hash_set_value = hash_set_value;
+    pi.add_cstr = add_cstr;
+    pi.array_append_cstr = array_append_cstr;
+
+    return oj_pi_parse(argc, argv, &pi, json);
 }

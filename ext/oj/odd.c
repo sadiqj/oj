@@ -32,65 +32,70 @@
 
 struct _Odd	odds[5]; // bump up if new Odd classes are added
 
+static void
+set_class(Odd odd, const char *classname) {
+    const char	**np;
+    ID		*idp;
+
+    odd->classname = classname;
+    odd->clen = strlen(classname);
+    odd->clas = rb_const_get(rb_cObject, rb_intern(classname));
+    odd->create_obj = odd->clas;
+    odd->create_op = rb_intern("new");
+    for (np = odd->attr_names, idp = odd->attrs; 0 != *np; np++, idp++) {
+	*idp = rb_intern(*np);
+    }
+    *idp = 0;
+}
+
 void
 oj_odd_init() {
-    Odd	odd;
-    ID	*idp;
-    ID	new_id = rb_intern("new");
+    Odd		odd;
+    const char	**np;
 
     odd = odds;
     // Rational
-    idp = odd->attrs;
-    odd->classname = "Rational";
-    odd->clas = rb_const_get(rb_cObject, rb_intern("Rational"));
+    np = odd->attr_names;
+    *np++ = "numerator";
+    *np++ = "denominator";
+    *np = 0;
+    set_class(odd, "Rational");
     odd->create_obj = rb_cObject;
     odd->create_op = rb_intern("Rational");
     odd->attr_cnt = 2;
-    *idp++ = rb_intern("numerator");
-    *idp++ = rb_intern("denominator");
-    *idp++ = 0;
     // Date
     odd++;
-    idp = odd->attrs;
-    odd->classname = "Date";
-    odd->clas = rb_const_get(rb_cObject, rb_intern("Date"));
-    odd->create_obj = odd->clas;
-    odd->create_op = new_id;
+    np = odd->attr_names;
+    *np++ = "year";
+    *np++ = "month";
+    *np++ = "day";
+    *np++ = "start";
+    *np++ = 0;
+    set_class(odd, "Date");
     odd->attr_cnt = 4;
-    *idp++ = rb_intern("year");
-    *idp++ = rb_intern("month");
-    *idp++ = rb_intern("day");
-    *idp++ = rb_intern("start");
-    *idp++ = 0;
     // DateTime
     odd++;
-    idp = odd->attrs;
-    odd->classname = "DateTime";
-    odd->clas = rb_const_get(rb_cObject, rb_intern("DateTime"));
-    odd->create_obj = odd->clas;
-    odd->create_op = new_id;
+    np = odd->attr_names;
+    *np++ = "year";
+    *np++ = "month";
+    *np++ = "day";
+    *np++ = "hour";
+    *np++ = "min";
+    *np++ = "sec";
+    *np++ = "offset";
+    *np++ = "start";
+    *np++ = 0;
+    set_class(odd, "DateTime");
     odd->attr_cnt = 8;
-    *idp++ = rb_intern("year");
-    *idp++ = rb_intern("month");
-    *idp++ = rb_intern("day");
-    *idp++ = rb_intern("hour");
-    *idp++ = rb_intern("min");
-    *idp++ = rb_intern("sec");
-    *idp++ = rb_intern("offset");
-    *idp++ = rb_intern("start");
-    *idp++ = 0;
     // Range
     odd++;
-    idp = odd->attrs;
-    odd->classname = "Range";
-    odd->clas = rb_const_get(rb_cObject, rb_intern("Range"));
-    odd->create_obj = odd->clas;
-    odd->create_op = new_id;
+    np = odd->attr_names;
+    *np++ = "begin";
+    *np++ = "end";
+    *np++ = "exclude_end?";
+    *np++ = 0;
+    set_class(odd, "Range");
     odd->attr_cnt = 3;
-    *idp++ = rb_intern("begin");
-    *idp++ = rb_intern("end");
-    *idp++ = rb_intern("exclude_end?");
-    *idp++ = 0;
     // The end. bump up the size of odds if a new class is added.
     odd++;
     odd->clas = Qundef;
@@ -106,4 +111,49 @@ oj_get_odd(VALUE clas) {
 	}
     }
     return 0;
+}
+
+Odd
+oj_get_oddc(const char *classname, size_t len) {
+    Odd	odd = odds;
+
+    for (; Qundef != odd->clas; odd++) {
+	if (len == odd->clen && 0 == strncmp(classname, odd->classname, len)) {
+	    return odd;
+	}
+    }
+    return 0;
+}
+
+OddArgs
+oj_odd_alloc_args(Odd odd) {
+    OddArgs	oa = ALLOC_N(struct _OddArgs, 1);
+    VALUE	*a;
+    int		i;
+
+    oa->odd = odd;
+    for (i = odd->attr_cnt, a = oa->args; 0 < i; i--, a++) {
+	*a = Qnil;
+    }
+    return oa;
+}
+
+void
+oj_odd_free(OddArgs args) {
+    xfree(args);
+}
+
+int
+oj_odd_set_arg(OddArgs args, const char *key, size_t klen, VALUE value) {
+    const char	**np;
+    VALUE	*vp;
+    int		i;
+
+    for (i = args->odd->attr_cnt, np = args->odd->attr_names, vp = args->args; 0 < i; i--, np++, vp++) {
+	if (0 == strncmp(key, *np, klen) && '\0' == *((*np) + klen)) {
+	    *vp = value;
+	    return 0;
+	}
+    }
+    return -1;
 }

@@ -3,19 +3,25 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- parser
- - wrap ruby callbacks to protect agains exceptions
- - Odd
-  - allocate Value[] for argument and put in classname
- - circular
-
-- object parser
- - put Qnil in place of Hash for hash_start
-  - on end fill in correct type if still nil
-  - on hash_set_?? create hash if Qnil
-
 - switch over to new and get rid of old
 
+- pass in allocated json to oj_pi_parse() in parse
+ - free if passed in
+
+- test suite to run all
+
+- license review
+
+- docs
+ - add docs for yardoc
+ - web pages
+  - perf
+  - format spec
+  - separate release history?
+  - examples
+ - readme
+  - links at end
+  - 
 
 ---------------------------
 Tried a separate thread for the parser and the results were poor. The parsing is 10% to 15% of the total so splitting

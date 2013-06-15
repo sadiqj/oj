@@ -37,17 +37,25 @@
 
 typedef struct _Odd {
     const char	*classname;
+    size_t	clen;
     VALUE	clas;			// Ruby class
     VALUE	create_obj;
     ID		create_op;
     int		attr_cnt;
+    const char	*attr_names[MAX_ODD_ARGS];	// 0 terminated attr IDs
     ID		attrs[MAX_ODD_ARGS];	// 0 terminated attr IDs
 } *Odd;
 
+typedef struct _OddArgs {
+    Odd		odd;
+    VALUE	args[MAX_ODD_ARGS];
+} *OddArgs;
+
 extern void	oj_odd_init(void);
 extern Odd	oj_get_odd(VALUE clas);
-// TBD get by char* and len
-// allocate and free args array
-// find by str and len
+extern Odd	oj_get_oddc(const char *classname, size_t len);
+extern OddArgs	oj_odd_alloc_args(Odd odd);
+extern void	oj_odd_free(OddArgs args);
+extern int	oj_odd_set_arg(OddArgs args, const char *key, size_t klen, VALUE value);
 
 #endif /* __OJ_ODD_H__ */

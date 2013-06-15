@@ -32,6 +32,7 @@
 #define __OJ_VAL_STACK_H__
 
 #include "ruby.h"
+#include "odd.h"
 
 #define STACK_INC	16
 
@@ -52,7 +53,7 @@ typedef struct _Val {
     const char	*key;
     union {
 	const char	*classname;
-	VALUE		*odd_args;
+	OddArgs		odd_args;
     };
     uint16_t	klen;
     uint16_t	clen;

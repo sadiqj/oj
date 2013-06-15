@@ -192,6 +192,12 @@ array_append_value(ParseInfo pi, VALUE value) {
     rb_funcall((VALUE)pi->cbc, oj_array_append_id, 2, stack_peek(&pi->stack)->val, value);
 }
 
+static VALUE
+protect_parse(VALUE pip) {
+    oj_parse2((ParseInfo)pip);
+
+    return Qnil;
+}
 
 VALUE
 oj_sc_parse(int argc, VALUE *argv, VALUE self) {
@@ -199,12 +205,14 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
     char		*buf = 0;
     VALUE		input;
     VALUE		handler;
+    int			line = 0;
 
     if (argc < 2) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to saj_parse.");
     }
     handler = *argv;;
     input = argv[1];
+    pi.json = 0;
     pi.options = oj_default_options;
     if (3 == argc) {
 	oj_parse_options(argv[2], &pi.options);
@@ -288,11 +296,15 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
 	    rb_raise(rb_eArgError, "saj_parse() expected a String or IO Object.");
 	}
     }
-    oj_parse2(&pi);
+    rb_protect(protect_parse, (VALUE)&pi, &line);
+    //oj_parse2(&pi);
     if (0 != buf) {
 	xfree(buf);
     }
     stack_cleanup(&pi.stack);
+    if (0 != line) {
+	rb_jump_tag(line);
+    }
     if (err_has(&pi.err)) {
 	oj_err_raise(&pi.err);
     }

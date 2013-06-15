@@ -693,11 +693,20 @@ oj_set_error_at(ParseInfo pi, VALUE err_clas, const char* file, int line, const 
     _oj_err_set_with_location(&pi->err, err_clas, msg, pi->json, pi->cur - 1, file, line);
 }
 
+static VALUE
+protect_parse(VALUE pip) {
+    oj_parse2((ParseInfo)pip);
+
+    return Qnil;
+}
+
 VALUE
-oj_pi_parse(int argc, VALUE *argv, ParseInfo pi) {
+oj_pi_parse(int argc, VALUE *argv, ParseInfo pi, char *json) {
     char	*buf = 0;
     VALUE	input;
     VALUE	result = Qnil;
+    int		line = 0;
+    int		free_json = 0;
 
     if (argc < 1) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to parse.");
@@ -708,7 +717,10 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi) {
 	oj_parse_options(argv[1], &pi->options);
     }
     pi->cbc = (void*)0;
-    if (rb_type(input) == T_STRING) {
+    if (0 != json) {
+	pi->json = json;
+	free_json = 1;
+    } else if (rb_type(input) == T_STRING) {
 	pi->json = StringValuePtr(input);
     } else {
 	VALUE	clas = rb_obj_class(input);
@@ -757,15 +769,20 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi) {
     } else {
 	pi->circ_array = 0;
     }
-    oj_parse2(pi);
+    rb_protect(protect_parse, (VALUE)pi, &line);
     if (0 != pi->circ_array) {
 	oj_circ_array_free(pi->circ_array);
     }
     if (0 != buf) {
 	xfree(buf);
+    } else if (free_json) {
+	xfree(json);
     }
     result = stack_head_val(&pi->stack);
     stack_cleanup(&pi->stack);
+    if (0 != line) {
+	rb_jump_tag(line);
+    }
     if (err_has(&pi->err)) {
 	oj_err_raise(&pi->err);
     }

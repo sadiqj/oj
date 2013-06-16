@@ -82,13 +82,19 @@ end_hash(struct _ParseInfo *pi) {
     }
 }
 
+void
+oj_set_compat_callbacks(ParseInfo pi) {
+    oj_set_strict_callbacks(pi);
+    pi->end_hash = end_hash;
+    pi->hash_set_cstr = hash_set_cstr;
+}
+
 VALUE
 oj_compat_parse(int argc, VALUE *argv, VALUE self) {
     struct _ParseInfo	pi;
 
-    oj_set_strict_callbacks(&pi);
-    pi.end_hash = end_hash;
-    pi.hash_set_cstr = hash_set_cstr;
+    pi.options = oj_default_options;
+    oj_set_compat_callbacks(&pi);
 
     return oj_pi_parse(argc, argv, &pi, 0);
 }
@@ -97,6 +103,7 @@ VALUE
 oj_compat_parse_cstr(int argc, VALUE *argv, char *json) {
     struct _ParseInfo	pi;
 
+    pi.options = oj_default_options;
     oj_set_strict_callbacks(&pi);
     pi.end_hash = end_hash;
     pi.hash_set_cstr = hash_set_cstr;

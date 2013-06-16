@@ -53,7 +53,7 @@ class StrictJuice < ::Test::Unit::TestCase
     dump_and_load(12345.6789, false)
     dump_and_load(70.35, false)
     dump_and_load(-54321.012, false)
-    dump_and_load(2.48e16, true)
+    dump_and_load(2.48e16, false)
     dump_and_load(2.48e100 * 1.0e10, false)
     dump_and_load(-2.48e100 * 1.0e10, false)
   end
@@ -190,6 +190,17 @@ class StrictJuice < ::Test::Unit::TestCase
 }
     obj = Oj.strict_load(json, :symbol_keys => true)
     assert_equal({ :x => true, :y => 58, :z => [1, 2, 3]}, obj)
+  end
+
+  def test_symbol_keys_safe
+    json = %{{
+  "x":true,
+  "y":58,
+  "z": [1,2,3]
+}
+}
+    obj = Oj.safe_load(json)
+    assert_equal({ 'x' => true, 'y' => 58, 'z' => [1, 2, 3]}, obj)
   end
 
   # comments

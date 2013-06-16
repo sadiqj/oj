@@ -299,6 +299,7 @@ read_escaped_str(ParseInfo pi, const char *start) {
 	    // key will not be between pi->json and pi->cur.
 	    parent->key = strdup(buf.head);
 	    parent->klen = buf_len(&buf);
+	    parent->k1 = *start;
 	    parent->next = NEXT_HASH_COLON;
 	    break;
 	case NEXT_HASH_VALUE:
@@ -349,6 +350,7 @@ read_str(ParseInfo pi) {
 	case NEXT_HASH_KEY:
 	    parent->key = str;
 	    parent->klen = pi->cur - str;
+	    parent->k1 = *str;
 	    parent->next = NEXT_HASH_COLON;
 	    break;
 	case NEXT_HASH_VALUE:
@@ -712,7 +714,6 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi, char *json) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to parse.");
     }
     input = argv[0];
-    pi->options = oj_default_options;
     if (2 == argc) {
 	oj_parse_options(argv[1], &pi->options);
     }
@@ -738,12 +739,8 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi, char *json) {
 	    size_t	len = lseek(fd, 0, SEEK_END);
 
 	    lseek(fd, 0, SEEK_SET);
-	    if (pi->options.max_stack < len) {
-		buf = ALLOC_N(char, len + 1);
-		pi->json = buf;
-	    } else {
-		pi->json = ALLOCA_N(char, len + 1);
-	    }
+	    buf = ALLOC_N(char, len + 1);
+	    pi->json = buf;
 	    if (0 >= (cnt = read(fd, (char*)pi->json, len)) || cnt != (ssize_t)len) {
 		if (0 != buf) {
 		    xfree(buf);

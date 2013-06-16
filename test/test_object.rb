@@ -121,7 +121,7 @@ class ObjectJuice < ::Test::Unit::TestCase
 
   def test_symbol
     dump_and_load(:abc, false)
-    dump_and_load(":abc", true)
+    dump_and_load(":abc", false)
   end
 
   def test_encode
@@ -331,6 +331,12 @@ class ObjectJuice < ::Test::Unit::TestCase
   def test_json_non_str_hash
     obj = { 59 => "young", false => true }
     dump_and_load(obj, false)
+  end
+
+  def test_mixed_hash_object
+    json = Oj.dump({ 1 => true, 'nil' => nil, :sim => 4 })
+    h = Oj.object_load(json)
+    assert_equal({ 1 => true, 'nil' => nil, :sim => 4 }, h)
   end
 
   def test_circular_hash

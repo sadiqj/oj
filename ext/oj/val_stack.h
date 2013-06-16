@@ -58,6 +58,7 @@ typedef struct _Val {
     uint16_t	klen;
     uint16_t	clen;
     char	next; // ValNext
+    char	k1;   // first original character in the key
 } *Val;
 
 typedef struct _ValStack {

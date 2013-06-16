@@ -120,7 +120,6 @@ class Juice < ::Test::Unit::TestCase
                    :time_format=>:unix,
                    :bigdecimal_as_decimal=>true,
                    :bigdecimal_load=>false,
-                   :max_stack=>4095,
                    :create_id=>'json_class'}, opts)
   end
 
@@ -137,7 +136,6 @@ class Juice < ::Test::Unit::TestCase
       :time_format=>:unix,
       :bigdecimal_as_decimal=>true,
       :bigdecimal_load=>false,
-      :max_stack=>4095,
       :create_id=>'json_class'}
     o2 = {
       :indent=>4,
@@ -151,7 +149,6 @@ class Juice < ::Test::Unit::TestCase
       :time_format=>:ruby,
       :bigdecimal_as_decimal=>false,
       :bigdecimal_load=>true,
-      :max_stack=>4000,
       :create_id=>nil}
     o3 = { :indent => 4 }
     Oj.default_options = o2
@@ -931,14 +928,12 @@ class Juice < ::Test::Unit::TestCase
 
 # Stream Deeply Nested
   def test_deep_nest
-    unless 'jruby' == RUBY_DESCRIPTION.split(' ')[0]
-      begin
-        n = 100000
-        Oj.load('[' * n + ']' * n)
-        assert(false)
-      rescue Exception => e
-        assert(e.class == SystemStackError)
-      end
+    #unless 'jruby' == RUBY_DESCRIPTION.split(' ')[0]
+    begin
+      n = 100000
+      Oj.strict_load('[' * n + ']' * n)
+    rescue Exception => e
+      assert(false, e.message)
     end
   end
 

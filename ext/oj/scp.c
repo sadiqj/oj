@@ -274,12 +274,8 @@ oj_sc_parse(int argc, VALUE *argv, VALUE self) {
 	    size_t	len = lseek(fd, 0, SEEK_END);
 
 	    lseek(fd, 0, SEEK_SET);
-	    if (pi.options.max_stack < len) {
-		buf = ALLOC_N(char, len + 1);
-		pi.json = buf;
-	    } else {
-		pi.json = ALLOCA_N(char, len + 1);
-	    }
+	    buf = ALLOC_N(char, len + 1);
+	    pi.json = buf;
 	    if (0 >= (cnt = read(fd, (char*)pi.json, len)) || cnt != (ssize_t)len) {
 		if (0 != buf) {
 		    xfree(buf);

@@ -52,14 +52,26 @@ read_long(const char *str, size_t len) {
 }
 
 static VALUE
-hash_key(ParseInfo pi, const char *key, size_t klen) {
-    VALUE	rkey = rb_str_new(key, klen);
+hash_key(ParseInfo pi, const char *key, size_t klen, char k1) {
+    VALUE	rkey;
+
+    if (':' == k1) {
+#if HAS_ENCODING_SUPPORT
+	rkey = rb_str_new(key + 1, klen - 1);
+	rb_enc_associate(rkey, oj_utf8_encoding);
+	rkey = rb_funcall(rkey, oj_to_sym_id, 0);
+#else
+	rkey = ID2SYM(rb_intern2(key + 1, klen - 1));
+#endif
+    } else {
+	rkey = rb_str_new(key, klen);
 
 #if HAS_ENCODING_SUPPORT
-    rb_enc_associate(rkey, oj_utf8_encoding);
+	rb_enc_associate(rkey, oj_utf8_encoding);
 #endif
-    if (Yes == pi->options.sym_key) {
-	rkey = rb_str_intern(rkey);
+	if (Yes == pi->options.sym_key) {
+	    rkey = rb_str_intern(rkey);
+	}
     }
     return rkey;
 }
@@ -292,7 +304,7 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 	}
 	break;
     case T_HASH:
-	rb_hash_aset(parent->val, hash_key(pi, key, klen), str_to_value(pi, str, len, orig));
+	rb_hash_aset(parent->val, hash_key(pi, key, klen, parent->k1), str_to_value(pi, str, len, orig));
 	break;
     case T_OBJECT:
 	set_obj_ivar(parent->val, key, klen, str_to_value(pi, str, len, orig));
@@ -332,7 +344,7 @@ hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
 	}
 	break;
     case T_HASH:
-	rb_hash_aset(parent->val, hash_key(pi, key, klen), oj_num_as_value(ni));
+	rb_hash_aset(parent->val, hash_key(pi, key, klen, parent->k1), oj_num_as_value(ni));
 	break;
     case T_OBJECT:
 	if (2 == klen && '^' == *key && 'i' == key[1] &&
@@ -387,7 +399,7 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
 	    }
 	    rb_hash_aset(parent->val, *a, a[1]);
 	} else {
-	    rb_hash_aset(parent->val, hash_key(pi, key, klen), value);
+	    rb_hash_aset(parent->val, hash_key(pi, key, klen, parent->k1), value);
 	}
 	break;
     case T_OBJECT:
@@ -467,6 +479,7 @@ VALUE
 oj_object_parse(int argc, VALUE *argv, VALUE self) {
     struct _ParseInfo	pi;
 
+    pi.options = oj_default_options;
     oj_set_strict_callbacks(&pi);
     pi.end_hash = end_hash;
     pi.start_hash = start_hash;
@@ -483,6 +496,7 @@ VALUE
 oj_object_parse_cstr(int argc, VALUE *argv, char *json) {
     struct _ParseInfo	pi;
 
+    pi.options = oj_default_options;
     oj_set_strict_callbacks(&pi);
     pi.end_hash = end_hash;
     pi.start_hash = start_hash;

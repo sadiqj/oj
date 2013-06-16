@@ -729,10 +729,9 @@ sajkey_parse(VALUE handler, char *json) {
  */
 VALUE
 oj_saj_parse(int argc, VALUE *argv, VALUE self) {
-    struct _Options	copts = oj_default_options;
-    char		*json = 0;
-    size_t		len = 0;
-    VALUE		input = argv[1];
+    char	*json = 0;
+    size_t	len = 0;
+    VALUE	input = argv[1];
 
     if (argc < 2) {
 	rb_raise(rb_eArgError, "Wrong number of arguments to saj_parse.\n");
@@ -740,11 +739,7 @@ oj_saj_parse(int argc, VALUE *argv, VALUE self) {
     if (rb_type(input) == T_STRING) {
 	// the json string gets modified so make a copy of it
 	len = RSTRING_LEN(input) + 1;
-	if (copts.max_stack < len) {
-	    json = ALLOC_N(char, len);
-	} else {
-	    json = ALLOCA_N(char, len);
-	}
+	json = ALLOC_N(char, len);
 	strcpy(json, StringValuePtr(input));
     } else {
 	VALUE	clas = rb_obj_class(input);
@@ -753,11 +748,7 @@ oj_saj_parse(int argc, VALUE *argv, VALUE self) {
 	if (oj_stringio_class == clas) {
 	    s = rb_funcall2(input, oj_string_id, 0, 0);
 	    len = RSTRING_LEN(s) + 1;
-	    if (copts.max_stack < len) {
-		json = ALLOC_N(char, len);
-	    } else {
-		json = ALLOCA_N(char, len);
-	    }
+	    json = ALLOC_N(char, len);
 	    strcpy(json, StringValuePtr(s));
 #ifndef JRUBY_RUBY
 #if !IS_WINDOWS
@@ -768,11 +759,7 @@ oj_saj_parse(int argc, VALUE *argv, VALUE self) {
 
 	    len = lseek(fd, 0, SEEK_END);
 	    lseek(fd, 0, SEEK_SET);
-	    if (copts.max_stack < len) {
-		json = ALLOC_N(char, len + 1);
-	    } else {
-		json = ALLOCA_N(char, len + 1);
-	    }
+	    json = ALLOC_N(char, len + 1);
 	    if (0 >= (cnt = read(fd, json, len)) || cnt != (ssize_t)len) {
 		rb_raise(rb_eIOError, "failed to read from IO Object.");
 	    }
@@ -782,19 +769,14 @@ oj_saj_parse(int argc, VALUE *argv, VALUE self) {
 	} else if (rb_respond_to(input, oj_read_id)) {
 	    s = rb_funcall2(input, oj_read_id, 0, 0);
 	    len = RSTRING_LEN(s) + 1;
-	    if (copts.max_stack < len) {
-		json = ALLOC_N(char, len);
-	    } else {
-		json = ALLOCA_N(char, len);
-	    }
+	    json = ALLOC_N(char, len);
 	    strcpy(json, StringValuePtr(s));
 	} else {
 	    rb_raise(rb_eArgError, "saj_parse() expected a String or IO Object.");
 	}
     }
     sajkey_parse(*argv, json);
-    if (copts.max_stack < len) {
-	xfree(json);
-    }
+    xfree(json);
+
     return Qnil;
 }

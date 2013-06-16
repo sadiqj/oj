@@ -3,17 +3,11 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- switch over to new and get rid of old
-
-- pass in allocated json to oj_pi_parse() in parse
- - free if passed in
-
-- test suite to run all
+- updated perf tests to just have the new targets
 
 - license review
 
 - docs
- - add docs for yardoc
  - web pages
   - perf
   - format spec

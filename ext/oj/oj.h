@@ -112,7 +112,6 @@ typedef struct _Options {
     char	bigdec_load;	// YesNo
     const char	*create_id;	// 0 or string
     size_t	create_id_len;	// length of create_id
-    size_t	max_stack;	// max size to allocate on the stack
     int		sec_prec;	// second precision when dumping time
     DumpOpts	dump_opts;
 } *Options;
@@ -152,7 +151,6 @@ typedef struct _Leaf {
     uint8_t		value_type;
 } *Leaf;
 
-extern VALUE	oj_parse(char *json, Options options, Err err);
 extern VALUE	oj_saj_parse(int argc, VALUE *argv, VALUE self);
 extern VALUE	oj_sc_parse(int argc, VALUE *argv, VALUE self);
 

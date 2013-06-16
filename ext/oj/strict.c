@@ -149,6 +149,7 @@ VALUE
 oj_strict_parse(int argc, VALUE *argv, VALUE self) {
     struct _ParseInfo	pi;
 
+    pi.options = oj_default_options;
     oj_set_strict_callbacks(&pi);
 
     return oj_pi_parse(argc, argv, &pi, 0);
@@ -158,6 +159,7 @@ VALUE
 oj_strict_parse_cstr(int argc, VALUE *argv, char *json) {
     struct _ParseInfo	pi;
 
+    pi.options = oj_default_options;
     oj_set_strict_callbacks(&pi);
 
     return oj_pi_parse(argc, argv, &pi, json);

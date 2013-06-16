@@ -20,6 +20,26 @@ Follow [@peterohler on Twitter](http://twitter.com/#!/peterohler) for announceme
 
 [![Build Status](https://secure.travis-ci.org/ohler55/oj.png?branch=master)](http://travis-ci.org/ohler55/oj)
 
+### Current Release 2.1.0
+
+ - This version is a major rewrite of the parser. The parser now uses a constant
+   stack size no matter how deeply nested the JSON document is. The parser is
+   also slightly faster for larger documents and 30% faster for object parsing.
+
+ - Oj.strict_load() was renamed to Oj.safe_load() to better represent its
+   functionality. A new Oj.strict_load() is simply Oj.load() with :mode set to
+   :strict.
+
+ - Oj.compat_load() and Oj.object_load() added.
+
+ - A new Simple Callback Parser was added invoked by Oj.sc_parse().
+
+ - Eliminated :max_stack option as it is no longer needed.
+
+ - Handle cleanup after exceptions better.
+
+[Older release notes](http://www.ohler.com/dev/oj_misc/release_notes.html).
+
 ## <a name="description">Description</a>
 
 Optimized JSON (Oj), as the name implies was written to provide speed optimized
@@ -83,26 +103,6 @@ from a user and evaluating it is never a good idea from an unsecure source. The 
 they are not more than Strings. Always check inputs from untrusted sources.
 
 ## <a name="release">Release Notes</a>
-
-### Current Release 2.1.0
-
- - This version is a major rewrite of the parser. The parser now uses a constant
-   stack size no matter how deeply nested the JSON document is. The parser is
-   also slightly faster for larger documents and 30% faster for object parsing.
-
- - Oj.strict_load() was renamed to Oj.safe_load() to better represent its
-   functionality. A new Oj.strict_load() is simply Oj.load() with :mode set to
-   :strict.
-
- - Oj.compat_load() and Oj.object_load() added.
-
- - A new Simple Callback Parser was added invoked by Oj.sc_parse().
-
- - Eliminated :max_stack option as it is no longer needed.
-
- - Handle cleanup after exceptions better.
-
-[Older release notes](http://www.ohler.com/dev/oj_misc/release_notes.html).
 
 ### Simple JSON Writing and Parsing:
 

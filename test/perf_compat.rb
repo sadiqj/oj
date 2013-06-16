@@ -90,7 +90,6 @@ def capture_error(tag, orig, load_key, dump_key, &blk)
 end
 
 # Verify that all packages dump and load correctly and return the same Object as the original.
-capture_error('Oj', $obj, 'load', 'dump') { |o| Oj.load(Oj.dump(o, :mode => :compat), :mode => :compat) }
 capture_error('Oj:compat', $obj, 'load', 'dump') { |o| Oj.compat_load(Oj.dump(o, :mode => :compat)) }
 capture_error('JSON::Ext', $obj, 'generate', 'parse') { |o|
   require 'json'
@@ -103,7 +102,6 @@ capture_error('JSON::Ext', $obj, 'generate', 'parse') { |o|
 if $verbose
   puts "size: #{$json.size}"
   puts "json:\n#{$json}\n"
-  puts "Oj loaded object:\n#{Oj.load($json)}\n"
   puts "Oj:compat loaded object:\n#{Oj.compat_load($json)}\n"
   puts "JSON loaded object:\n#{JSON::Ext::Parser.new($json).parse}\n"
 end
@@ -114,10 +112,6 @@ perf = Perf.new()
 unless $failed.has_key?('JSON::Ext')
   perf.add('JSON::Ext', 'parse') { JSON.load($json) }
   perf.before('JSON::Ext') { JSON.parser = JSON::Ext::Parser }
-end
-unless $failed.has_key?('Oj')
-  perf.add('Oj', 'load') { Oj.load($json) }
-  perf.before('Oj') { Oj.default_options = { :mode => :compat} }
 end
 unless $failed.has_key?('Oj:compat')
   perf.add('Oj:compat', 'compat_load') { Oj.compat_load($json) }

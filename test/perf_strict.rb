@@ -76,7 +76,7 @@ def capture_error(tag, orig, load_key, dump_key, &blk)
 end
 
 # Verify that all packages dump and load correctly and return the same Object as the original.
-capture_error('Oj', $obj, 'load', 'dump') { |o| Oj.load(Oj.dump(o, :mode => :strict), :mode => :strict) }
+capture_error('Oj:strict', $obj, 'load', 'dump') { |o| Oj.strict_load(Oj.dump(o, :mode => :strict)) }
 capture_error('Yajl', $obj, 'encode', 'parse') { |o| require 'yajl'; Yajl::Parser.parse(Yajl::Encoder.encode(o)) }
 capture_error('JSON::Ext', $obj, 'generate', 'parse') { |o|
   require 'json'
@@ -95,7 +95,7 @@ capture_error('JSON::Pure', $obj, 'generate', 'parse') { |o|
 if $verbose
   puts "json:\n#{$json}\n"
   puts "object json:\n#{$obj_json}\n"
-  puts "Oj loaded object:\n#{Oj.load($json)}\n"
+  puts "Oj loaded object:\n#{Oj.strict_load($json)}\n"
   puts "Yajl loaded object:\n#{Yajl::Parser.parse($json)}\n"
   puts "JSON loaded object:\n#{JSON::Ext::Parser.new($json).parse}\n"
 end
@@ -110,10 +110,6 @@ end
 unless $failed.has_key?('JSON::Pure')
   perf.add('JSON::Pure', 'parse') { JSON.parse($json) }
   perf.before('JSON::Pure') { JSON.parser = JSON::Pure::Parser }
-end
-unless $failed.has_key?('Oj')
-  perf.add('Oj', 'load') { Oj.load($obj_json) }
-  perf.before('Oj') { Oj.default_options = { :mode => :strict} }
 end
 unless $failed.has_key?('Oj:strict')
   perf.add('Oj:strict', 'strict_load') { Oj.strict_load($json) }

@@ -213,9 +213,6 @@ extern ID	oj_tv_sec_id;
 extern ID	oj_tv_usec_id;
 extern ID	oj_utc_offset_id;
 
-extern Cache	oj_class_cache;
-extern Cache	oj_attr_cache;
-
 #if SAFE_CACHE
 extern pthread_mutex_t	oj_cache_mutex;
 #endif

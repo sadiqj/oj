@@ -34,7 +34,7 @@
 #include "ruby.h"
 #include "odd.h"
 
-#define STACK_INC	16
+#define STACK_INC	32
 
 typedef enum {
     NEXT_NONE		= 0,
@@ -117,6 +117,11 @@ stack_push(ValStack stack, VALUE val, ValNext next) {
     stack->tail->klen = 0;
     //stack->tail->type = TYPE_NONE;
     stack->tail++;
+}
+
+inline static size_t
+stack_size(ValStack stack) {
+    return stack->tail - stack->head;
 }
 
 inline static Val

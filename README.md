@@ -138,10 +138,6 @@ puts "Same? #{h == h2}"
 
 [Oj Callback Performance](http://www.ohler.com/dev/oj_misc/performance_callback.html) compares Oj callback parser performance to other JSON parsers.
 
-## <a name="links">Sample Code</a>
-
-[Oj Sample Code](http://www.ohler.com/dev/oj_misc/samples.html) some sample code.
-
 ## <a name="links">Links of Interest</a>
 
 *Fast XML parser and marshaller on RubyGems*: https://rubygems.org/gems/ox

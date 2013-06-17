@@ -576,12 +576,6 @@ class Juice < ::Test::Unit::TestCase
     obj = Orange.new(true, 58)
     json = Oj.dump(obj, :indent => 2)
     assert(!json.nil?)
-=begin
-    assert_equal(%{{
-  "json_class":"Orange",
-  "x":true,
-  "y":58}}, json)
-=end
     dump_and_load(obj, false)
   end
 
@@ -930,7 +924,7 @@ class Juice < ::Test::Unit::TestCase
   def test_deep_nest
     #unless 'jruby' == RUBY_DESCRIPTION.split(' ')[0]
     begin
-      n = 100000
+      n = 10000
       Oj.strict_load('[' * n + ']' * n)
     rescue Exception => e
       assert(false, e.message)

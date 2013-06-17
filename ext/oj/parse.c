@@ -40,16 +40,16 @@
 #include "val_stack.h"
 
 // Workaround in case INFINITY is not defined in math.h or if the OS is CentOS
-#define OJ_INFINITY (1.0/0.0)
+#define OJ_INFINITY	(1.0/0.0)
 
 #ifdef RUBINIUS_RUBY
-#define NUM_MAX 0x07FFFFFF
+#define NUM_MAX		0x07FFFFFF
 #else
-#define NUM_MAX (FIXNUM_MAX >> 8)
+#define NUM_MAX		(FIXNUM_MAX >> 8)
 #endif
-#define EXP_MAX	1023
-#define I64_MAX	0x7FFFFFFFFFFFFFFFLL
-#define DEC_MAX	14
+#define EXP_MAX		1023
+#define I64_MAX		0x7FFFFFFFFFFFFFFFLL
+#define DEC_MAX		14
 
 static void
 next_non_white(ParseInfo pi) {
@@ -218,7 +218,7 @@ static void
 read_escaped_str(ParseInfo pi, const char *start) {
     struct _Buf	buf;
     const char	*s;
-    int		cnt = pi->cur - start;
+    int		cnt = (int)(pi->cur - start);
     uint32_t	code;
     Val		parent = stack_peek(&pi->stack);
 
@@ -766,7 +766,19 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi, char *json) {
     } else {
 	pi->circ_array = 0;
     }
+    // GC can run at any time. When it runs any Object created by C will be
+    // freed. This usually only happens with large files but it does happen and
+    // it happens more frequently on Ruby 1.8.7.
+#if HAS_GC_GUARD
+    rb_gc_disable();
+#endif
     rb_protect(protect_parse, (VALUE)pi, &line);
+    result = stack_head_val(&pi->stack);
+#if HAS_GC_GUARD
+    RB_GC_GUARD(result);
+    rb_gc_enable();
+#endif
+    // proceed with cleanup
     if (0 != pi->circ_array) {
 	oj_circ_array_free(pi->circ_array);
     }
@@ -775,7 +787,6 @@ oj_pi_parse(int argc, VALUE *argv, ParseInfo pi, char *json) {
     } else if (free_json) {
 	xfree(json);
     }
-    result = stack_head_val(&pi->stack);
     stack_cleanup(&pi->stack);
     if (0 != line) {
 	rb_jump_tag(line);

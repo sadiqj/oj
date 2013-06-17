@@ -116,9 +116,6 @@ static VALUE	symbolize_names_sym;
 
 static VALUE	mimic = Qnil;
 
-Cache	oj_class_cache = 0;
-Cache	oj_attr_cache = 0;
-
 #if HAS_ENCODING_SUPPORT
 rb_encoding	*oj_utf8_encoding = 0;
 #endif
@@ -381,7 +378,8 @@ oj_parse_options(VALUE ropts, Options copts) {
 		rb_raise(rb_eArgError, ":time_format must be :unix, :xmlschema, or :ruby.");
 	    }
 	}
-	if (Qundef != (v = rb_hash_lookup2(ropts, create_id_sym, Qundef))) {
+	if (Qtrue == rb_funcall(ropts, rb_intern("has_key?"), 1, create_id_sym)) {
+	    v = rb_hash_lookup(ropts, create_id_sym);
 	    if (Qnil == v) {
 		if (json_class != oj_default_options.create_id) {
 		    xfree((char*)oj_default_options.create_id);
@@ -1048,23 +1046,6 @@ define_mimic_json(int argc, VALUE *argv, VALUE self) {
     return mimic;
 }
 
-#if 0
-extern void	oj_cache_test();
-extern void	oj_hash_test();
-
-static VALUE
-cache_test(VALUE self) {
-    oj_cache_test();
-    return Qnil;
-}
-
-static VALUE
-hash_test(VALUE self) {
-    oj_hash_test();
-    return Qnil;
-}
-#endif
-
 void Init_oj() {
     Oj = rb_define_module("Oj");
 
@@ -1152,8 +1133,6 @@ void Init_oj() {
     oj_utf8_encoding = rb_enc_find("UTF-8");
 #endif
 
-    oj_cache_new(&oj_class_cache);
-    oj_cache_new(&oj_attr_cache);
     oj_hash_init();
     oj_odd_init();
 
@@ -1162,7 +1141,6 @@ void Init_oj() {
 #endif
     oj_init_doc();
 
-    //rb_define_module_function(Oj, "cache_test", cache_test, 0);
     //rb_define_module_function(Oj, "hash_test", hash_test, 0);
 
 }

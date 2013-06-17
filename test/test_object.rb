@@ -324,8 +324,10 @@ class ObjectJuice < ::Test::Unit::TestCase
   end
 
   def test_json_struct
-    obj = Stuck.new(false, 7)
-    dump_and_load(obj, false)
+    unless 'jruby' == RUBY_DESCRIPTION.split(' ')[0]
+      obj = Stuck.new(false, 7)
+      dump_and_load(obj, false)
+    end
   end
 
   def test_json_non_str_hash

@@ -58,7 +58,7 @@ hash_calc(const uint8_t *key, size_t len) {
     uint32_t	k;
     uint32_t	*kp = (uint32_t*)key;
     uint32_t	*end = kp + (len / 4);
-    uint32_t	h = len;
+    uint32_t	h = (uint32_t)len;
     
     for (; kp < end; kp++) {
         k = M * *kp;
@@ -147,4 +147,3 @@ ID
 oj_attr_hash_get(const char *key, size_t len, ID **slotp) {
     return (ID)hash_get(&intern_hash, key, len, (VALUE**)slotp, 0);
 }
-

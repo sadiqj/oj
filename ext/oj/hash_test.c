@@ -450,10 +450,9 @@ static void
 perf() {
     StrLen	d;
     VALUE	v;
-    VALUE	*slot = 0;;
+    VALUE	*slot = 0;
     uint64_t	dt, start;
     int		i, iter = 1000000;
-    //int		i, iter = 1;
 
     oj_hash_init();
     start = micro_time();

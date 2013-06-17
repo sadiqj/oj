@@ -3,19 +3,10 @@
 ^c^d hide subtree
 ^c^s show subtree
 
-- updated perf tests to just have the new targets
+- merge
 
 - license review
 
-- docs
- - web pages
-  - perf
-  - format spec
-  - separate release history?
-  - examples
- - readme
-  - links at end
-  - 
 
 ---------------------------
 Tried a separate thread for the parser and the results were poor. The parsing is 10% to 15% of the total so splitting

@@ -83,7 +83,7 @@ else
     $xml = File.read(f)
     $obj = Ox.load($xml);
     $mars = Marshal.dump($obj)
-    $json = Oj.dump($obj, :indent => $indent, circular: $circular)
+    $json = Oj.dump($obj, :indent => $indent, :circular => $circular)
   end
 end
 

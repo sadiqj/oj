@@ -56,13 +56,11 @@ hash_key(ParseInfo pi, const char *key, size_t klen, char k1) {
     VALUE	rkey;
 
     if (':' == k1) {
-#if HAS_ENCODING_SUPPORT
 	rkey = rb_str_new(key + 1, klen - 1);
+#if HAS_ENCODING_SUPPORT
 	rb_enc_associate(rkey, oj_utf8_encoding);
-	rkey = rb_funcall(rkey, oj_to_sym_id, 0);
-#else
-	rkey = ID2SYM(rb_intern2(key + 1, klen - 1));
 #endif
+	rkey = rb_funcall(rkey, oj_to_sym_id, 0);
     } else {
 	rkey = rb_str_new(key, klen);
 
@@ -81,13 +79,11 @@ str_to_value(ParseInfo pi, const char *str, size_t len, const char *orig) {
     VALUE	rstr = Qnil;
 
     if (':' == *orig && 0 < len) {
-#if HAS_ENCODING_SUPPORT
 	rstr = rb_str_new(str + 1, len - 1);
+#if HAS_ENCODING_SUPPORT
 	rb_enc_associate(rstr, oj_utf8_encoding);
-	rstr = rb_funcall(rstr, oj_to_sym_id, 0);
-#else
-	rstr = ID2SYM(rb_intern2(str + 1, len - 1));
 #endif
+	rstr = rb_funcall(rstr, oj_to_sym_id, 0);
     } else if (pi->circ_array && 3 <= len && '^' == *orig && 'r' == orig[1]) {
 	long	i = read_long(str + 2, len - 2);
 
@@ -130,13 +126,11 @@ hat_cstr(ParseInfo pi, Val parent, const char *key, size_t klen, const char *str
 	    }
 	    break;
 	case 'm':
-#if HAS_ENCODING_SUPPORT
 	    parent->val = rb_str_new(str + 1, len - 1);
+#if HAS_ENCODING_SUPPORT
 	    rb_enc_associate(parent->val, oj_utf8_encoding);
-	    parent->val = rb_funcall(parent->val, oj_to_sym_id, 0);
-#else
-	    parent->val = ID2SYM(rb_intern2(str + 1, len - 1));
 #endif
+	    parent->val = rb_funcall(parent->val, oj_to_sym_id, 0);
 	    break;
 	case 's':
 	    parent->val = rb_str_new(str, len);
@@ -211,7 +205,8 @@ hat_value(ParseInfo pi, Val parent, const char *key, size_t klen, VALUE value) {
 	    oj_set_error_at(pi, oj_parse_error_class, __FILE__, __LINE__, "Invalid struct data");
 	    return 1;
 	}
-	sc = rb_const_get(oj_struct_class, rb_intern_str(*a));
+	sc = rb_const_get(oj_struct_class, rb_to_id(*a));
+	//sc = rb_const_get(oj_struct_class, rb_intern_str(*a));
 	// use encoding as the indicator for Ruby 1.8.7 or 1.9.x
 #if HAS_ENCODING_SUPPORT
 	s = rb_struct_alloc_noinit(sc);
@@ -247,10 +242,20 @@ hat_value(ParseInfo pi, Val parent, const char *key, size_t klen, VALUE value) {
 }
 
 static void
-set_obj_ivar(VALUE obj, const char *key, size_t klen, VALUE value) {
+set_obj_ivar(Val parent, const char *key, size_t klen, VALUE value) {
     ID	var_id;
     ID	*slot;
 
+    if ('~' == *key && Qtrue == rb_obj_is_kind_of(parent->val, rb_eException)) {
+	if (5 == klen && 0 == strncmp("~mesg", key, klen)) {
+	    VALUE	args[1];
+
+	    args[0] = value;
+	    parent->val = rb_class_new_instance(1, args, rb_class_of(parent->val));
+	} else if (3 == klen && 0 == strncmp("~bt", key, klen)) {
+	    rb_funcall(parent->val, rb_intern("set_backtrace"), 1, value);
+	}
+    }
 #if SAFE_CACHE
     pthread_mutex_lock(&oj_cache_mutex);
 #endif
@@ -286,8 +291,7 @@ set_obj_ivar(VALUE obj, const char *key, size_t klen, VALUE value) {
 #if SAFE_CACHE
     pthread_mutex_unlock(&oj_cache_mutex);
 #endif
-
-    rb_ivar_set(obj, var_id, value);
+    rb_ivar_set(parent->val, var_id, value);
 }
 
 static void
@@ -307,7 +311,7 @@ hash_set_cstr(ParseInfo pi, const char *key, size_t klen, const char *str, size_
 	rb_hash_aset(parent->val, hash_key(pi, key, klen, parent->k1), str_to_value(pi, str, len, orig));
 	break;
     case T_OBJECT:
-	set_obj_ivar(parent->val, key, klen, str_to_value(pi, str, len, orig));
+	set_obj_ivar(parent, key, klen, str_to_value(pi, str, len, orig));
 	break;
     case T_CLASS:
 	if (0 == parent->odd_args) {
@@ -351,7 +355,7 @@ hash_set_num(ParseInfo pi, const char *key, size_t klen, NumInfo ni) {
 	    !ni->infinity && !ni->neg && 1 == ni->div && 0 == ni->exp && 0 != pi->circ_array) { // fixnum
 	    oj_circ_array_set(pi->circ_array, parent->val, ni->i);
 	} else {
-	    set_obj_ivar(parent->val, key, klen, oj_num_as_value(ni));
+	    set_obj_ivar(parent, key, klen, oj_num_as_value(ni));
 	}
 	break;
     case T_CLASS:
@@ -403,7 +407,7 @@ hash_set_value(ParseInfo pi, const char *key, size_t klen, VALUE value) {
 	}
 	break;
     case T_OBJECT:
-	set_obj_ivar(parent->val, key, klen, value);
+	set_obj_ivar(parent, key, klen, value);
 	break;
     case T_CLASS:
 	if (0 == parent->odd_args) {

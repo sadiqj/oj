@@ -31,6 +31,8 @@
 #ifndef __OJ_PARSE_H__
 #define __OJ_PARSE_H__
 
+#include <stdarg.h>
+
 #include "ruby.h"
 #include "oj.h"
 #include "val_stack.h"

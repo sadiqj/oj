@@ -1138,7 +1138,7 @@ void Init_oj() {
     oj_read_id = rb_intern("read");
     oj_string_id = rb_intern("string");
     oj_to_hash_id = rb_intern("to_hash");
-    oj_to_json_id = rb_intern("to_json");
+    oj_to_json_id = rb_intern("to_json_oj");
     oj_to_s_id = rb_intern("to_s");
     oj_to_sym_id = rb_intern("to_sym");
     oj_to_time_id = rb_intern("to_time");
